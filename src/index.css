@@ -1,0 +1,1518 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    /* Background mais escuro e elegante */
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+
+    /* Cards com cor mais suave */
+    --card: 240 10% 8%;
+    --card-foreground: 0 0% 95%;
+
+    /* Popover harmonioso */
+    --popover: 240 10% 8%;
+    --popover-foreground: 0 0% 95%;
+
+    /* Primary usando verde cerrado */
+    --primary: 97 66% 50%;
+    --primary-foreground: 240 10% 3.9%;
+
+    /* Secondary mais elegante */
+    --secondary: 240 4% 16%;
+    --secondary-foreground: 0 0% 98%;
+
+    /* Muted com melhor contraste */
+    --muted: 240 4% 16%;
+    --muted-foreground: 240 5% 65%;
+
+    /* Accent com cor cerrado */
+    --accent: 97 66% 50%;
+    --accent-foreground: 240 10% 3.9%;
+
+    /* Destructive mais visível */
+    --destructive: 0 62.8% 50.6%;
+    --destructive-foreground: 0 0% 98%;
+
+    /* Borders suaves */
+    --border: 240 4% 16%;
+    --input: 240 4% 16%;
+    --ring: 97 66% 50%;
+    
+    /* Sidebar com design moderno */
+    --sidebar-background: 240 6% 6%;
+    --sidebar-foreground: 0 0% 90%;
+    --sidebar-primary: 97 66% 50%;
+    --sidebar-primary-foreground: 240 10% 3.9%;
+    --sidebar-accent: 240 4% 12%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 240 4% 12%;
+    --sidebar-ring: 97 66% 50%;
+  }
+
+  /* 🌞 FORÇA TEMA CLARO - Páginas Index e Login */
+  .force-light-theme {
+    --background: 0 0% 100% !important;
+    --foreground: 222.2 84% 4.9% !important;
+    --card: 0 0% 100% !important;
+    --card-foreground: 222.2 84% 4.9% !important;
+    --popover: 0 0% 100% !important;
+    --popover-foreground: 222.2 84% 4.9% !important;
+    --primary: 222.2 47.4% 11.2% !important;
+    --primary-foreground: 210 40% 98% !important;
+    --secondary: 210 40% 96.1% !important;
+    --secondary-foreground: 222.2 47.4% 11.2% !important;
+    --muted: 210 40% 96.1% !important;
+    --muted-foreground: 215.4 16.3% 46.9% !important;
+    --accent: 210 40% 96.1% !important;
+    --accent-foreground: 222.2 47.4% 11.2% !important;
+    --destructive: 0 84.2% 60.2% !important;
+    --destructive-foreground: 210 40% 98% !important;
+    --border: 214.3 31.8% 91.4% !important;
+    --input: 214.3 31.8% 91.4% !important;
+    --ring: 222.2 84% 4.9% !important;
+  }
+
+  .force-light-theme.dark {
+    --background: 0 0% 100% !important;
+    --foreground: 222.2 84% 4.9% !important;
+    --card: 0 0% 100% !important;
+    --card-foreground: 222.2 84% 4.9% !important;
+    --popover: 0 0% 100% !important;
+    --popover-foreground: 222.2 84% 4.9% !important;
+    --primary: 222.2 47.4% 11.2% !important;
+    --primary-foreground: 210 40% 98% !important;
+    --secondary: 210 40% 96.1% !important;
+    --secondary-foreground: 222.2 47.4% 11.2% !important;
+    --muted: 210 40% 96.1% !important;
+    --muted-foreground: 215.4 16.3% 46.9% !important;
+    --accent: 210 40% 96.1% !important;
+    --accent-foreground: 222.2 47.4% 11.2% !important;
+    --destructive: 0 84.2% 60.2% !important;
+    --destructive-foreground: 210 40% 98% !important;
+    --border: 214.3 31.8% 91.4% !important;
+    --input: 214.3 31.8% 91.4% !important;
+    --ring: 222.2 84% 4.9% !important;
+  }
+
+  .force-light-theme *,
+  .force-light-theme.dark * {
+    --background: 0 0% 100% !important;
+    --foreground: 222.2 84% 4.9% !important;
+    --card: 0 0% 100% !important;
+    --card-foreground: 222.2 84% 4.9% !important;
+    --muted-foreground: 215.4 16.3% 46.9% !important;
+    --border: 214.3 31.8% 91.4% !important;
+    --input: 214.3 31.8% 91.4% !important;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground scroll-smooth font-sans transition-colors duration-300;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold transition-colors duration-300;
+  }
+
+  /* Tema claro */
+  :root h1, :root h2, :root h3, :root h4, :root h5, :root h6 {
+    @apply text-cerrado-dark;
+  }
+
+  /* Tema escuro - cores mais harmoniosas */
+  .dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6 {
+    @apply text-cerrado-green3;
+  }
+
+  /* Força títulos em tema claro nas páginas Index/Login */
+  .force-light-theme h1,
+  .force-light-theme h2,
+  .force-light-theme h3,
+  .force-light-theme h4,
+  .force-light-theme h5,
+  .force-light-theme h6 {
+    color: #080D0A !important;
+  }
+
+  .force-light-theme.dark h1,
+  .force-light-theme.dark h2,
+  .force-light-theme.dark h3,
+  .force-light-theme.dark h4,
+  .force-light-theme.dark h5,
+  .force-light-theme.dark h6 {
+    color: #080D0A !important;
+  }
+
+  .section-padding {
+    @apply py-16 px-4 sm:px-6 md:px-12 lg:px-24;
+  }
+
+  .animate-on-scroll {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+  }
+  
+  .animate-on-scroll.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  
+  /* Dashboard sidebar width adjustment */
+  .dashboard-sidebar {
+    width: 160px;
+    min-width: 160px;
+  }
+  
+  /* Dashboard content adjustment to prevent scrolling */
+  .dashboard-content {
+    height: calc(100vh - 64px);
+    overflow: auto;
+  }
+  
+  /* Dashboard card content to fit screen */
+  .dashboard-card-content {
+    max-height: calc(100vh - 200px);
+    overflow: auto;
+  }
+
+  /* Custom sidebar styles com tema escuro */
+  .custom-sidebar {
+    transition: width 0.3s ease, background-color 0.3s ease;
+  }
+
+  .custom-sidebar-collapsed {
+    width: 5rem;
+  }
+
+  .custom-sidebar-expanded {
+    width: 10rem;
+  }
+
+  /* Estilos customizados do calendário para melhor visualização */
+  .rdp {
+    @apply w-full;
+  }
+
+  .rdp-caption {
+    @apply mb-4;
+  }
+
+  .rdp-month {
+    @apply w-full;
+  }
+
+  .rdp-table {
+    @apply w-full border-spacing-1;
+  }
+
+  .rdp-cell, .rdp-head_cell {
+    @apply min-h-[3rem] text-center;
+  }
+
+  .rdp-day {
+    @apply min-h-[2.5rem] min-w-[2.5rem] text-base font-medium;
+    @apply hover:bg-accent hover:text-accent-foreground;
+    @apply focus:bg-accent focus:text-accent-foreground;
+    @apply transition-all duration-200;
+  }
+
+  /* Melhorar visualização das datas com eventos */
+  .rdp-day[style*="background-color: rgb(34, 197, 94)"] {
+    @apply shadow-lg transform hover:scale-105;
+    border: 2px solid rgba(34, 197, 94, 0.6) !important;
+  }
+
+  /* Data atual com destaque especial */
+  .rdp-day_today {
+    @apply ring-2 ring-primary ring-offset-2 font-bold;
+  }
+
+  /* Melhorar responsividade do calendário */
+  @media (max-width: 640px) {
+    .rdp-cell, .rdp-head_cell {
+      @apply min-h-[2.5rem];
+    }
+    
+    .rdp-day {
+      @apply min-h-[2rem] min-w-[2rem] text-sm;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .rdp-cell, .rdp-head_cell {
+      @apply min-h-[3.5rem];
+    }
+    
+    .rdp-day {
+      @apply min-h-[3rem] min-w-[3rem] text-lg;
+    }
+  }
+
+  /* Card hover effects melhorados */
+  .card {
+    @apply transition-all duration-300 hover:shadow-lg;
+  }
+
+  /* Cards no tema escuro com efeitos elegantes */
+  .dark .card {
+    @apply hover:shadow-2xl hover:shadow-cerrado-green3/5 bg-card border-border;
+  }
+
+  /* Scrollbar personalizada para tema escuro */
+  .dark ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .dark ::-webkit-scrollbar-track {
+    background: hsl(240 4% 16%);
+  }
+
+  .dark ::-webkit-scrollbar-thumb {
+    background: hsl(240 4% 24%);
+    border-radius: 4px;
+  }
+
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background: hsl(240 4% 32%);
+  }
+}
+
+@layer utilities {
+  .clip-circle {
+    clip-path: circle();
+  }
+  
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Hide scrollbar for IE, Edge and Firefox */
+  .no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+
+  /* Utilities específicas para tema escuro */
+  .dark-glass {
+    @apply bg-black/20 backdrop-blur-sm border border-white/10;
+  }
+
+  .dark-elevated {
+    @apply bg-card shadow-xl border border-border;
+  }
+}
+
+/* Estilos básicos para impressão */
+@media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  
+  /* Garantir que o texto seja legível em impressão */
+  .print\\:text-gray-800 {
+    color: #1a202c !important;
+  }
+  
+  .print\\:text-gray-700 {
+    color: #374151 !important;
+  }
+  
+  /* Garantir que o fundo seja branco na impressão */
+  .print\\:bg-white {
+    background-color: white !important;
+  }
+  
+  /* Remover efeitos de sombra na impressão */
+  .print\\:shadow-none {
+    box-shadow: none !important;
+  }
+  
+  /* Ocultar o footer na impressão */
+  footer {
+    display: none !important;
+  }
+}
+
+/* Estilos globais responsivos para todo o sistema */
+.responsive-container {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.responsive-table {
+  width: 100%;
+  min-width: fit-content;
+  font-size: clamp(0.75rem, 1.2vw, 0.9rem);
+}
+
+.responsive-table th,
+.responsive-table td {
+  padding: clamp(0.375rem, 0.8vw, 0.75rem) clamp(0.5rem, 1vw, 1rem);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 200px;
+  overflow: hidden;
+}
+
+.responsive-card {
+  padding: clamp(0.75rem, 2vw, 1.5rem);
+}
+
+.responsive-button-group {
+  display: flex;
+  gap: clamp(0.25rem, 0.5vw, 0.5rem);
+  flex-wrap: wrap;
+}
+
+.responsive-button {
+  padding: clamp(0.25rem, 0.5vw, 0.5rem) clamp(0.5rem, 1vw, 1rem);
+  font-size: clamp(0.7rem, 1vw, 0.85rem);
+  min-height: clamp(28px, 5vw, 36px);
+}
+
+.responsive-input {
+  font-size: clamp(0.75rem, 1.2vw, 0.9rem);
+  padding: clamp(0.375rem, 0.8vw, 0.75rem);
+}
+
+.responsive-badge {
+  font-size: clamp(0.65rem, 1vw, 0.8rem);
+  padding: clamp(0.125rem, 0.3vw, 0.375rem) clamp(0.375rem, 0.7vw, 0.75rem);
+}
+
+/* Solução simples para o problema do sidebar */
+.dashboard-content {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* Estilos específicos para diferentes tamanhos de tela */
+@media (max-width: 1920px) {
+  .responsive-table {
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 1600px) {
+  .responsive-table {
+    font-size: 0.8rem;
+  }
+  
+  .responsive-table th,
+  .responsive-table td {
+    padding: 0.5rem 0.75rem;
+    max-width: 180px;
+  }
+}
+
+@media (max-width: 1366px) {
+  .responsive-table {
+    font-size: 0.75rem;
+  }
+  
+  .responsive-table th,
+  .responsive-table td {
+    padding: 0.375rem 0.625rem;
+    max-width: 160px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .responsive-table {
+    font-size: 0.7rem;
+    min-width: 900px;
+  }
+  
+  .responsive-table th,
+  .responsive-table td {
+    padding: 0.25rem 0.5rem;
+    max-width: 140px;
+  }
+  
+  .responsive-card {
+    padding: 0.75rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .responsive-table {
+    min-width: 700px;
+  }
+  
+  .responsive-card {
+    padding: 0.5rem;
+  }
+}
+
+/* Componentes específicos que podem causar overflow */
+.overflow-safe {
+  overflow-x: auto;
+  overflow-y: visible;
+  max-width: 100%;
+}
+
+.text-truncate-responsive {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  max-width: clamp(100px, 15vw, 250px);
+}
+
+/* Scrollbar customizada para overflow horizontal */
+.overflow-safe::-webkit-scrollbar {
+  height: 8px;
+}
+
+.overflow-safe::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+  border-radius: 4px;
+}
+
+.overflow-safe::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 4px;
+}
+
+.overflow-safe::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--accent));
+}
+
+/* Estilos específicos para o componente financeiro - Limpo e Responsivo */
+.financial-management {
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.financial-management .table-container {
+  overflow-x: auto;
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+.financial-management table {
+  font-size: 0.8rem;
+  width: 100%;
+  min-width: 1000px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.financial-management th,
+.financial-management td {
+  padding: 0.5rem 0.75rem;
+  vertical-align: middle;
+  border-bottom: 1px solid hsl(var(--border));
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.financial-management th {
+  background-color: hsl(var(--muted));
+  font-weight: 600;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.financial-management td {
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.financial-management .card-content {
+  padding: 1rem;
+}
+
+.financial-management .card-header {
+  padding: 1rem;
+}
+
+.financial-management .button-group {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+}
+
+.financial-management .button-group button {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  height: 28px;
+  min-width: 28px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.financial-management .badge {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.4rem;
+  white-space: nowrap;
+}
+
+.financial-management input,
+.financial-management select {
+  font-size: 0.8rem;
+  padding: 0.4rem 0.6rem;
+  height: 32px;
+}
+
+/* Responsividade simplificada */
+@media (max-width: 1366px) {
+  .financial-management table {
+    font-size: 0.75rem;
+    min-width: 950px;
+  }
+  
+  .financial-management th,
+  .financial-management td {
+    padding: 0.4rem 0.6rem;
+    max-width: 180px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .financial-management {
+    font-size: 0.8rem;
+  }
+  
+  .financial-management table {
+    font-size: 0.7rem;
+    min-width: 900px;
+  }
+  
+  .financial-management .card-header,
+  .financial-management .card-content {
+    padding: 0.75rem;
+  }
+  
+  .financial-management th,
+  .financial-management td {
+    padding: 0.35rem 0.5rem;
+    max-width: 150px;
+  }
+}
+
+@media (max-width: 768px) {
+  .financial-management table {
+    min-width: 800px;
+  }
+  
+  .financial-management .card-header,
+  .financial-management .card-content {
+    padding: 0.5rem;
+  }
+}
+
+/* Hover states */
+.financial-management table tbody tr:hover {
+  background-color: hsl(var(--muted) / 0.3);
+  transition: background-color 0.2s ease;
+}
+
+.financial-management .button-group button:hover {
+  transform: scale(1.05);
+  transition: transform 0.15s ease;
+}
+
+/* Scroll suave */
+.financial-management .table-container {
+  scroll-behavior: smooth;
+}
+
+.financial-management .table-container::-webkit-scrollbar {
+  height: 6px;
+}
+
+.financial-management .table-container::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+  border-radius: 3px;
+}
+
+.financial-management .table-container::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 3px;
+}
+
+.financial-management .table-container::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--accent));
+}
+
+/* Estilos específicos para o componente de clientes - Limpo e Responsivo */
+.client-management {
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.client-management .table-container {
+  overflow-x: auto;
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+.client-management table {
+  font-size: 0.8rem;
+  width: 100%;
+  min-width: 950px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.client-management th,
+.client-management td {
+  padding: 0.5rem 0.75rem;
+  vertical-align: middle;
+  border-bottom: 1px solid hsl(var(--border));
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.client-management th {
+  background-color: hsl(var(--muted));
+  font-weight: 600;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.client-management td {
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.client-management .card-content {
+  padding: 1rem;
+}
+
+.client-management .card-header {
+  padding: 1rem;
+}
+
+.client-management .button-group {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: nowrap;
+  justify-content: center;
+}
+
+.client-management .button-group button {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  height: 28px;
+  min-width: 28px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.client-management .badge {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.4rem;
+  white-space: nowrap;
+}
+
+.client-management input:not([class*="pl-"]),
+.client-management select {
+  font-size: 0.8rem;
+  padding: 0.4rem 0.6rem;
+  height: 32px;
+}
+
+/* Exceção para inputs com ícone (busca) */
+.client-management input[class*="pl-"] {
+  padding-left: 2.5rem !important;
+}
+
+/* Responsividade para clientes */
+@media (max-width: 1366px) {
+  .client-management table {
+    font-size: 0.75rem;
+    min-width: 900px;
+  }
+  
+  .client-management th,
+  .client-management td {
+    padding: 0.4rem 0.6rem;
+    max-width: 180px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .client-management {
+    font-size: 0.8rem;
+  }
+  
+  .client-management table {
+    font-size: 0.7rem;
+    min-width: 850px;
+  }
+  
+  .client-management .card-header,
+  .client-management .card-content {
+    padding: 0.75rem;
+  }
+  
+  .client-management th,
+  .client-management td {
+    padding: 0.35rem 0.5rem;
+    max-width: 150px;
+  }
+}
+
+@media (max-width: 768px) {
+  .client-management table {
+    min-width: 750px;
+  }
+  
+  .client-management .card-header,
+  .client-management .card-content {
+    padding: 0.5rem;
+  }
+}
+
+/* Hover states para clientes */
+.client-management table tbody tr:hover {
+  background-color: hsl(var(--muted) / 0.3);
+  transition: background-color 0.2s ease;
+}
+
+.client-management .button-group button:hover {
+  transform: scale(1.05);
+  transition: transform 0.15s ease;
+}
+
+/* Scroll suave para clientes */
+.client-management .table-container {
+  scroll-behavior: smooth;
+}
+
+.client-management .table-container::-webkit-scrollbar {
+  height: 6px;
+}
+
+.client-management .table-container::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+  border-radius: 3px;
+}
+
+.client-management .table-container::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 3px;
+}
+
+.client-management .table-container::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--accent));
+}
+
+/* Estilos específicos para o componente Kanban - Limpo e Responsivo */
+.kanban-management {
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.kanban-management .grid {
+  display: grid;
+  gap: 1rem;
+  overflow: visible;
+}
+
+.kanban-management .responsive-card {
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+}
+
+.kanban-management .responsive-card .card-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.3;
+  margin-bottom: 0.375rem;
+}
+
+.kanban-management .responsive-card .card-description {
+  font-size: 0.75rem;
+  line-height: 1.2;
+  opacity: 0.8;
+}
+
+.kanban-management .responsive-button {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  height: 28px;
+  min-width: 28px;
+}
+
+.kanban-management .responsive-button svg {
+  width: 12px;
+  height: 12px;
+}
+
+.kanban-management .responsive-badge {
+  font-size: 0.65rem;
+  padding: 0.125rem 0.375rem;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+
+.kanban-management .column-header {
+  padding: 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.kanban-management .column-content {
+  padding: 0.5rem;
+  height: calc(98vh - 200px);
+  overflow-y: auto;
+}
+
+.kanban-management .text-truncate-responsive {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  max-width: 200px;
+}
+
+/* Responsividade do Kanban */
+@media (max-width: 1366px) {
+  .kanban-management {
+    font-size: 0.8rem;
+  }
+  
+  .kanban-management .column-content {
+    height: calc(98vh - 200px);
+  }
+  
+  .kanban-management .responsive-card {
+    padding: 0.6rem;
+    font-size: 0.75rem;
+  }
+  
+  .kanban-management .text-truncate-responsive {
+    max-width: 180px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .kanban-management {
+    font-size: 0.75rem;
+  }
+  
+  .kanban-management .responsive-card {
+    padding: 0.5rem;
+    font-size: 0.7rem;
+  }
+  
+  .kanban-management .text-truncate-responsive {
+    max-width: 150px;
+  }
+  
+  .kanban-management .column-content {
+    height: calc(98vh - 180px);
+  }
+}
+
+@media (max-width: 768px) {
+  .kanban-management .grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+  
+  .kanban-management .column-content {
+    height: calc(98vh - 160px);
+  }
+  
+  .kanban-management .text-truncate-responsive {
+    max-width: 120px;
+  }
+}
+
+@media (max-width: 640px) {
+  .kanban-management .grid {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+  
+  .kanban-management .column-content {
+    height: calc(98vh - 140px);
+  }
+}
+
+/* Estilos específicos para o componente de despesas - Limpo e Responsivo */
+.expense-management {
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.expense-management .table-container {
+  overflow-x: auto;
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+.expense-management table {
+  font-size: 0.8rem;
+  width: 100%;
+  min-width: 1000px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.expense-management th,
+.expense-management td {
+  padding: 0.5rem 0.75rem;
+  vertical-align: middle;
+  border-bottom: 1px solid hsl(var(--border));
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.expense-management th {
+  background-color: hsl(var(--muted));
+  font-weight: 600;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.expense-management td {
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.expense-management .card-content {
+  padding: 1rem;
+}
+
+.expense-management .card-header {
+  padding: 1rem;
+}
+
+.expense-management .button-group {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+}
+
+.expense-management .button-group button {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  height: 28px;
+  min-width: 28px;
+}
+
+.expense-management .button-group button svg {
+  width: 12px;
+  height: 12px;
+}
+
+.expense-management .responsive-button {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  height: 28px;
+  min-width: 28px;
+}
+
+.expense-management .responsive-button svg {
+  width: 12px;
+  height: 12px;
+}
+
+.expense-management .responsive-badge {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.4rem;
+  white-space: nowrap;
+}
+
+.expense-management .responsive-input {
+  font-size: 0.8rem;
+  padding: 0.4rem 0.6rem;
+  height: 32px;
+}
+
+.expense-management .text-truncate-responsive {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  max-width: 200px;
+}
+
+/* Responsividade para solicitações de despesas */
+@media (max-width: 1366px) {
+  .expense-management table {
+    font-size: 0.75rem;
+    min-width: 1000px;
+  }
+  
+  .expense-management th,
+  .expense-management td {
+    padding: 0.4rem 0.6rem;
+    max-width: 180px;
+  }
+  
+  .expense-management .text-truncate-responsive {
+    max-width: 160px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .expense-management {
+    font-size: 0.8rem;
+  }
+  
+  .expense-management table {
+    font-size: 0.7rem;
+    min-width: 950px;
+  }
+  
+  .expense-management .card-header,
+  .expense-management .card-content {
+    padding: 0.75rem;
+  }
+  
+  .expense-management th,
+  .expense-management td {
+    padding: 0.35rem 0.5rem;
+    max-width: 150px;
+  }
+  
+  .expense-management .text-truncate-responsive {
+    max-width: 140px;
+  }
+}
+
+@media (max-width: 768px) {
+  .expense-management table {
+    min-width: 850px;
+  }
+  
+  .expense-management .card-header,
+  .expense-management .card-content {
+    padding: 0.5rem;
+  }
+  
+  .expense-management .text-truncate-responsive {
+    max-width: 120px;
+  }
+}
+
+/* Hover states para solicitações */
+.expense-management table tbody tr:hover {
+  background-color: hsl(var(--muted) / 0.3);
+  transition: background-color 0.2s ease;
+}
+
+.expense-management .button-group button:hover {
+  transform: scale(1.05);
+  transition: transform 0.15s ease;
+}
+
+/* Scroll suave para solicitações */
+.expense-management .table-container {
+  scroll-behavior: smooth;
+}
+
+.expense-management .table-container::-webkit-scrollbar {
+  height: 6px;
+}
+
+.expense-management .table-container::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+  border-radius: 3px;
+}
+
+.expense-management .table-container::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 3px;
+}
+
+.expense-management .table-container::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--accent));
+}
+
+/* Estilos para diálogos responsivos */
+.expense-management .dialog-content {
+  max-width: 90vw;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.expense-management .tabs-content {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 1rem 0;
+}
+
+/* Melhorias para o sidebar */
+.custom-sidebar {
+  width: 64px;
+  transition: width 0.3s ease;
+}
+
+.custom-sidebar.expanded {
+  width: 256px;
+}
+
+.custom-sidebar .sidebar-content {
+  padding: 0.5rem;
+}
+
+.custom-sidebar .menu-item {
+  padding: 0.5rem;
+  font-size: 0.75rem;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.custom-sidebar .menu-item:hover {
+  background-color: hsl(var(--accent));
+}
+
+.custom-sidebar .menu-item.active {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+/* Responsividade geral melhorada */
+@media (max-width: 640px) {
+  .expense-management .dialog-content {
+    max-width: 95vw;
+    padding: 1rem;
+  }
+  
+  .expense-management .tabs-content {
+    max-height: 50vh;
+  }
+}
+
+/* Advanced Micro-interactions and Animations */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes pulse-green {
+  0%, 100% { 
+    box-shadow: 0 0 0 0 rgba(151, 191, 65, 0.7);
+  }
+  50% { 
+    box-shadow: 0 0 0 15px rgba(151, 191, 65, 0);
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes slideInFromLeft {
+  0% {
+    opacity: 0;
+    transform: translateX(-50px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInFromRight {
+  0% {
+    opacity: 0;
+    transform: translateX(50px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scaleIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes rotateIn {
+  0% {
+    opacity: 0;
+    transform: rotate(-180deg) scale(0.5);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+  }
+}
+
+@keyframes slideInUp {
+  0% {
+    opacity: 0;
+    transform: translateY(60px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInUp {
+  0% {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes gentle-bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-8px);
+  }
+  60% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes gentle-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(151, 191, 65, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(151, 191, 65, 0.5);
+  }
+}
+
+/* Enhanced Button Interactions */
+.btn-glow {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-glow::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transition: left 0.5s;
+}
+
+.btn-glow:hover::before {
+  left: 100%;
+}
+
+/* Floating Elements */
+.float-animation {
+  animation: float 6s ease-in-out infinite;
+}
+
+.pulse-green {
+  animation: pulse-green 2s infinite;
+}
+
+/* Card Hover Effects */
+.card-3d {
+  transition: all 0.3s ease;
+  transform-style: preserve-3d;
+}
+
+.card-3d:hover {
+  transform: rotateX(5deg) rotateY(-5deg) translateY(-10px);
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.2),
+    0 10px 20px rgba(151, 191, 65, 0.1);
+}
+
+/* Smooth scrolling for all browsers */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Enhanced focus states */
+*:focus-visible {
+  outline: 2px solid #97BF41;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Loading shimmer effect */
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    #f0f0f0 25%,
+    #e0e0e0 50%,
+    #f0f0f0 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* Advanced gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #97BF41, #5A7C2A);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Staggered animation utility classes */
+.animate-delay-100 { animation-delay: 0.1s; }
+.animate-delay-200 { animation-delay: 0.2s; }
+.animate-delay-300 { animation-delay: 0.3s; }
+.animate-delay-400 { animation-delay: 0.4s; }
+.animate-delay-500 { animation-delay: 0.5s; }
+
+/* Enhanced visibility animations */
+.animate-on-scroll {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.animate-on-scroll.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Icon animations */
+.icon-bounce:hover {
+  animation: bounce 0.5s ease-in-out;
+}
+
+@keyframes bounce {
+  0%, 20%, 53%, 80%, 100% {
+    transform: translate3d(0,0,0);
+  }
+  40%, 43% {
+    transform: translate3d(0,-8px,0);
+  }
+  70% {
+    transform: translate3d(0,-4px,0);
+  }
+  90% {
+    transform: translate3d(0,-2px,0);
+  }
+}
+
+/* Enhanced backdrop blur for better performance */
+.backdrop-blur-enhanced {
+  backdrop-filter: blur(12px) saturate(1.5);
+  -webkit-backdrop-filter: blur(12px) saturate(1.5);
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+  .card-3d:hover {
+    transform: none;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  }
+}
+
+/* Dark mode optimizations */
+@media (prefers-color-scheme: dark) {
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      #2a2a2a 25%,
+      #3a3a3a 50%,
+      #2a2a2a 75%
+    );
+  }
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* High contrast mode support */
+@media (forced-colors: active) {
+  .bg-cerrado-green3 {
+    background-color: ButtonText;
+  }
+  
+  .text-cerrado-green3 {
+    color: ButtonText;
+  }
+}

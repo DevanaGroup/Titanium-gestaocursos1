@@ -1,0 +1,297 @@
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.openaiService = exports.OpenAIService = void 0;
+const functions = __importStar(require("firebase-functions"));
+const admin = __importStar(require("firebase-admin"));
+const openai_1 = __importDefault(require("openai"));
+class OpenAIService {
+    constructor() {
+        var _a, _b;
+        const apiKey = (_a = functions.config().openai) === null || _a === void 0 ? void 0 : _a.api_key;
+        this.assistantId = ((_b = functions.config().openai) === null || _b === void 0 ? void 0 : _b.assistant_id) || 'asst_KgrDjTfAWIXH7m4x1xyNivEq';
+        if (!apiKey) {
+            throw new Error('OpenAI API key não configurada nas variáveis de ambiente do Firebase');
+        }
+        this.openai = new openai_1.default({
+            apiKey: apiKey
+        });
+    }
+    getDb() {
+        if (!this.db) {
+            this.db = admin.firestore();
+        }
+        return this.db;
+    }
+    /**
+     * Busca ou cria um thread para o cliente
+     */
+    async getOrCreateThread(clienteId) {
+        try {
+            // Buscar thread existente no Firestore
+            const clienteRef = this.getDb().collection('clientes').doc(clienteId);
+            const clienteDoc = await clienteRef.get();
+            if (clienteDoc.exists) {
+                const clienteData = clienteDoc.data();
+                if (clienteData === null || clienteData === void 0 ? void 0 : clienteData.openai_thread_id) {
+                    // Verificar se o thread ainda existe na OpenAI
+                    try {
+                        await this.openai.beta.threads.retrieve(clienteData.openai_thread_id);
+                        functions.logger.info('✅ Thread existente encontrado', {
+                            clienteId,
+                            threadId: clienteData.openai_thread_id
+                        });
+                        return clienteData.openai_thread_id;
+                    }
+                    catch (error) {
+                        functions.logger.warn('⚠️ Thread não existe mais na OpenAI, criando novo', {
+                            clienteId,
+                            oldThreadId: clienteData.openai_thread_id
+                        });
+                    }
+                }
+            }
+            // Criar novo thread
+            const thread = await this.openai.beta.threads.create();
+            functions.logger.info('🆕 Novo thread criado', {
+                clienteId,
+                threadId: thread.id
+            });
+            // Salvar thread ID no Firestore
+            await clienteRef.update({
+                openai_thread_id: thread.id,
+                thread_created_at: admin.firestore.FieldValue.serverTimestamp(),
+                updated_at: admin.firestore.FieldValue.serverTimestamp()
+            });
+            return thread.id;
+        }
+        catch (error) {
+            functions.logger.error('❌ Erro ao gerenciar thread', error);
+            throw error;
+        }
+    }
+    /**
+     * Envia mensagem para o assistente OpenAI usando thread persistente
+     */
+    async processMessage(message, clientContext, clienteId) {
+        var _a;
+        try {
+            functions.logger.info('🤖 Processando mensagem com OpenAI', {
+                assistantId: this.assistantId,
+                messageLength: message.length,
+                hasContext: !!clientContext,
+                clienteId
+            });
+            // Obter thread do cliente
+            const threadId = await this.getOrCreateThread(clienteId);
+            // Preparar mensagem com contexto (apenas na primeira mensagem do contexto)
+            const fullMessage = clientContext ? `${clientContext}\n\nMensagem: ${message}` : message;
+            // Adicionar mensagem à thread
+            await this.openai.beta.threads.messages.create(threadId, {
+                role: 'user',
+                content: fullMessage
+            });
+            functions.logger.info('📨 Mensagem adicionada ao thread', {
+                threadId,
+                messageLength: fullMessage.length
+            });
+            // Executar assistente com instruções específicas
+            const run = await this.openai.beta.threads.runs.createAndPoll(threadId, {
+                assistant_id: this.assistantId
+            });
+            functions.logger.info('✅ Assistente executado', {
+                status: run.status,
+                threadId
+            });
+            if (run.status === 'failed') {
+                throw new Error(`Execução do assistente falhou: ${((_a = run.last_error) === null || _a === void 0 ? void 0 : _a.message) || 'Erro desconhecido'}`);
+            }
+            if (run.status !== 'completed') {
+                throw new Error(`Execução não completou. Status: ${run.status}`);
+            }
+            // Buscar mensagens da thread
+            const messages = await this.openai.beta.threads.messages.list(threadId);
+            const assistantMessage = messages.data.find(msg => msg.role === 'assistant');
+            if (!assistantMessage) {
+                throw new Error('Nenhuma resposta encontrada do assistente');
+            }
+            // Extrair texto da resposta
+            const content = assistantMessage.content[0];
+            if (content.type !== 'text') {
+                throw new Error('Tipo de resposta não suportado');
+            }
+            const responseText = content.text.value;
+            functions.logger.info('📥 Resposta recebida do assistente', {
+                responseLength: responseText.length,
+                threadId
+            });
+            // Tentar fazer parse do JSON
+            try {
+                const parsedResponse = JSON.parse(responseText);
+                // Atualizar estatísticas do thread
+                await this.updateThreadStats(clienteId, threadId);
+                return parsedResponse;
+            }
+            catch (jsonError) {
+                functions.logger.warn('⚠️ Resposta não é JSON válido, criando estrutura', {
+                    error: jsonError
+                });
+                // Fallback: criar estrutura baseada na análise da mensagem
+                return this.createFallbackResponse(message, responseText, clientContext);
+            }
+        }
+        catch (error) {
+            functions.logger.error('❌ Erro ao processar com OpenAI', error);
+            // Fallback para erro de API
+            return this.createFallbackResponse(message, '', clientContext);
+        }
+    }
+    /**
+     * Atualiza estatísticas do thread
+     */
+    async updateThreadStats(clienteId, threadId) {
+        try {
+            const clienteRef = this.getDb().collection('clientes').doc(clienteId);
+            await clienteRef.update({
+                thread_last_used: admin.firestore.FieldValue.serverTimestamp(),
+                thread_message_count: admin.firestore.FieldValue.increment(1),
+                updated_at: admin.firestore.FieldValue.serverTimestamp()
+            });
+        }
+        catch (error) {
+            functions.logger.warn('⚠️ Erro ao atualizar estatísticas do thread', error);
+            // Não falhar o processo principal
+        }
+    }
+    /**
+     * Reseta o thread de um cliente (cria um novo)
+     */
+    async resetClientThread(clienteId) {
+        try {
+            // Criar novo thread
+            const thread = await this.openai.beta.threads.create();
+            functions.logger.info('🔄 Thread resetado para cliente', {
+                clienteId,
+                newThreadId: thread.id
+            });
+            // Atualizar no Firestore
+            const clienteRef = this.getDb().collection('clientes').doc(clienteId);
+            await clienteRef.update({
+                openai_thread_id: thread.id,
+                thread_created_at: admin.firestore.FieldValue.serverTimestamp(),
+                thread_reset_count: admin.firestore.FieldValue.increment(1),
+                updated_at: admin.firestore.FieldValue.serverTimestamp()
+            });
+            return thread.id;
+        }
+        catch (error) {
+            functions.logger.error('❌ Erro ao resetar thread', error);
+            throw error;
+        }
+    }
+    /**
+     * Cria resposta de fallback quando a API falha ou retorna formato inválido
+     */
+    createFallbackResponse(message, originalReply, clientContext) {
+        const lowerMessage = message.toLowerCase();
+        // Identificar tópico de psicologia
+        let psychologyTopic = null;
+        if (lowerMessage.includes('ansiedade') || lowerMessage.includes('nervoso')) {
+            psychologyTopic = 'ansiedade';
+        }
+        else if (lowerMessage.includes('depressão') || lowerMessage.includes('triste')) {
+            psychologyTopic = 'depressão';
+        }
+        else if (lowerMessage.includes('estresse')) {
+            psychologyTopic = 'estresse';
+        }
+        else if (lowerMessage.includes('terapia') || lowerMessage.includes('psicoterapia')) {
+            psychologyTopic = 'psicoterapia';
+        }
+        else if (lowerMessage.includes('relacionamento') || lowerMessage.includes('casal')) {
+            psychologyTopic = 'relacionamentos';
+        }
+        // Identificar curso
+        let identifiedCourse = null;
+        if (lowerMessage.includes('curso') || lowerMessage.includes('formação')) {
+            if (lowerMessage.includes('ansiedade') || lowerMessage.includes('tcc')) {
+                identifiedCourse = 'curso_tcc_ansiedade';
+            }
+            else if (lowerMessage.includes('depressão')) {
+                identifiedCourse = 'curso_depressao';
+            }
+            else if (lowerMessage.includes('casal')) {
+                identifiedCourse = 'curso_terapia_casal';
+            }
+            else {
+                identifiedCourse = 'curso_geral_psicologia';
+            }
+        }
+        // Gerar resposta inteligente
+        let reply = originalReply;
+        if (!reply) {
+            const clientName = this.extractClientName(clientContext);
+            reply = `Olá ${clientName}! Recebi sua mensagem e estou aqui para ajudá-lo com qualquer questão que tenha. Como posso ajudar você hoje?`;
+        }
+        return {
+            reply,
+            identified_course_id: identifiedCourse,
+            psychology_topic: psychologyTopic,
+            out_of_scope: false
+        };
+    }
+    /**
+     * Extrai nome do cliente do contexto
+     */
+    extractClientName(context) {
+        if (!context)
+            return 'Prezado(a)';
+        const lines = context.split('\n');
+        const clienteLine = lines.find(line => line.startsWith('Cliente:'));
+        if (clienteLine) {
+            const name = clienteLine.replace('Cliente:', '').trim();
+            const firstName = name.split(' ')[0];
+            return firstName || 'Prezado(a)';
+        }
+        return 'Prezado(a)';
+    }
+}
+exports.OpenAIService = OpenAIService;
+// Instância singleton
+exports.openaiService = new OpenAIService();
+//# sourceMappingURL=openaiService.js.map

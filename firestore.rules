@@ -1,0 +1,218 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if user is authenticated
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    // Helper function to get level number from hierarchyLevel string
+    function getLevelNumber(level) {
+      return level == "Nível 1" ? 1 : 
+             level == "Nível 2" ? 2 : 
+             level == "Nível 3" ? 3 : 
+             level == "Nível 4" ? 4 : 
+             level == "Nível 5" ? 5 : 5;
+    }
+    
+    // Helper function to check if user is level 1 (highest level)
+    function isLevel1() {
+      return isSignedIn() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.hierarchyLevel == "Nível 1";
+    }
+    
+    // Helper function to check if user can manage (Níveis 1, 2, 3)
+    function canManage() {
+      return isSignedIn() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.hierarchyLevel in ["Nível 1", "Nível 2", "Nível 3"];
+    }
+    
+    // Helper function to check if user has financial access (Níveis 1, 2, 3)
+    function hasFinancialAccess() {
+      return isSignedIn() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.hierarchyLevel in ["Nível 1", "Nível 2", "Nível 3"];
+    }
+    
+    // Helper function to check if user owns the document
+    function isOwner(ownerId) {
+      return isSignedIn() && request.auth.uid == ownerId;
+    }
+    
+    // Users collection - principal coleção para todos os usuários
+    // Permite criação se o usuário está criando seu próprio documento (para scripts de inicialização)
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && (request.auth.uid == userId || canManage());
+      allow update: if isSignedIn() && (request.auth.uid == userId || canManage());
+      allow delete: if canManage();
+    }
+    
+    // Legacy collections - keep for backward compatibility
+    match /collaborators_unified/{collaboratorId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if canManage();
+    }
+    
+    match /collaborators/{collaboratorId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if canManage();
+    }
+    
+    // Clients collection - everyone can read, authenticated users can create/update, only managers can delete
+    match /clients/{clientId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if canManage();
+    }
+    
+    // Tasks collection - everyone can read and create, owners and managers can update/delete
+    match /tasks/{taskId} {
+      allow read, create: if isSignedIn();
+      allow update, delete: if isSignedIn() && (isOwner(resource.data.assignedTo) || canManage());
+    }
+    
+    // Agenda events - users can manage their own events, managers can manage all
+    match /agendaEvents/{eventId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && (isOwner(resource.data.ownerId) || canManage());
+    }
+    
+    // Expense requests - users can create their own, managers can approve/reject
+    match /expenseRequests/{requestId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (isOwner(resource.data.requesterId) || canManage());
+      allow delete: if canManage();
+    }
+    
+    // Financial data - only Presidente and Diretor Financeiro can access
+    match /financialClients/{clientId} {
+      allow read, write: if hasFinancialAccess();
+    }
+    
+    match /monthlyBalances/{balanceId} {
+      allow read, write: if hasFinancialAccess();
+    }
+    
+    match /prospectClients/{prospectId} {
+      allow read, write: if hasFinancialAccess();
+    }
+    
+    // Document management - read for all authenticated, modify only for managers
+    match /Categorias/{categoryId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if canManage();
+    }
+    
+    match /SubCategorias/{subCategoryId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if canManage();
+    }
+    
+    match /documents/{documentId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if canManage();
+    }
+    
+    // TERMO DE REFERÊNCIA - Apenas Nível 1 pode gerenciar
+    match /termoReferenciaFolders/{folderId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isLevel1();
+    }
+    
+    match /termoReferenciaDocuments/{documentId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isLevel1();
+    }
+    
+    // Reports and analytics - only Presidente and Diretor Financeiro can access
+    match /reports/{reportId} {
+      allow read, write: if hasFinancialAccess();
+    }
+    
+    match /productivityMetrics/{metricId} {
+      allow read: if isSignedIn() && (isOwner(resource.data.collaboratorId) || canManage());
+      allow create, update, delete: if canManage();
+    }
+    
+    match /productivityGoals/{goalId} {
+      allow read: if isSignedIn() && (isOwner(resource.data.collaboratorId) || canManage());
+      allow create, update, delete: if canManage();
+    }
+    
+    // Notifications - users can read their own, system can create
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn() && isOwner(resource.data.recipientId);
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && (isOwner(resource.data.recipientId) || canManage());
+    }
+    
+    match /notification_logs/{logId} {
+      allow read, write: if canManage();
+    }
+    
+    // Task processes and workflows
+    match /taskProcesses/{processId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isSignedIn();
+    }
+    
+    match /processSteps/{stepId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if canManage();
+    }
+    
+    // Time tracking
+    match /timeTracking/{trackingId} {
+      allow read: if isSignedIn() && (isOwner(resource.data.collaboratorId) || canManage());
+      allow create, update, delete: if isSignedIn() && isOwner(resource.data.collaboratorId);
+    }
+    
+    // User assistants - users can manage their own assistants
+    match /user_assistants/{assistantId} {
+      allow read: if isSignedIn() && isOwner(resource.data.userId);
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && isOwner(resource.data.userId);
+    }
+    
+    // Email collection - allow system to write
+    match /mail/{mailId} {
+      allow read: if false;  // Não permite leitura
+      allow create: if true; // Permite criação (usado pela extensão Email Trigger)
+      allow update, delete: if false; // Não permite modificação ou deleção
+    }
+    
+    // User assistants - users can manage their own assistants
+    match /assistants/{assistantId} {
+      allow read, write: if isSignedIn();
+    }
+    
+    // Support tickets - authenticated users can read and create
+    match /supportTickets/{ticketId} {
+      allow read, create: if isSignedIn();
+      allow update, delete: if isSignedIn();
+    }
+    
+    // Support ticket updates - authenticated users can read and create
+    match /supportTicketUpdates/{updateId} {
+      allow read, create: if isSignedIn();
+      allow update, delete: if isSignedIn();
+    }
+    
+    // Courses collection - authenticated users can read, managers can create/update/delete
+    match /courses/{courseId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if canManage();
+    }
+    
+    // Default deny all other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+} 

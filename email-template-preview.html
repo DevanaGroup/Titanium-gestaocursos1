@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preview - Templates de Email de Notificações</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background-color: #f0f0f0; 
+        }
+        .preview-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .preview-header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .email-preview {
+            margin-bottom: 40px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background: white;
+            overflow: hidden;
+        }
+        .email-header {
+            background: #333;
+            color: white;
+            padding: 10px 20px;
+            font-weight: bold;
+        }
+        .email-content {
+            max-width: 600px;
+            margin: 0;
+            background-color: white;
+        }
+        .container { 
+            max-width: 600px; 
+            margin: 0; 
+            background-color: white; 
+            border-radius: 8px; 
+            overflow: hidden; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+        }
+        .header { 
+            color: white; 
+            padding: 20px; 
+            text-align: center; 
+        }
+        .content { 
+            padding: 30px; 
+        }
+        .task-info { 
+            background-color: #f8f9fa; 
+            padding: 20px; 
+            border-radius: 6px; 
+            margin: 20px 0; 
+        }
+        .priority-badge { 
+            display: inline-block; 
+            padding: 4px 12px; 
+            border-radius: 20px; 
+            font-size: 12px; 
+            font-weight: bold; 
+            margin-bottom: 10px; 
+        }
+        .btn { 
+            display: inline-block; 
+            padding: 12px 24px; 
+            background-color: #007bff; 
+            color: white; 
+            text-decoration: none; 
+            border-radius: 6px; 
+            margin: 20px 0; 
+        }
+        .footer { 
+            background-color: #f8f9fa; 
+            padding: 20px; 
+            text-align: center; 
+            font-size: 12px; 
+            color: #666; 
+        }
+        .due-date { 
+            font-weight: bold; 
+        }
+        .tip-box {
+            background-color: #fff3cd; 
+            border: 1px solid #ffeaa7; 
+            padding: 15px; 
+            border-radius: 6px; 
+            margin: 20px 0;
+        }
+        .tip-text {
+            margin: 0; 
+            color: #856404;
+        }
+        
+        /* Cores específicas por prioridade */
+        .urgente .header { background-color: #dc3545; }
+        .urgente .due-date { color: #dc3545; }
+        .urgente .priority-badge { background-color: #dc3545; color: white; }
+        
+        .alta .header { background-color: #fd7e14; }
+        .alta .due-date { color: #fd7e14; }
+        .alta .priority-badge { background-color: #fd7e14; color: white; }
+        
+        .media .header { background-color: #ffc107; }
+        .media .due-date { color: #ffc107; }
+        .media .priority-badge { background-color: #ffc107; color: #212529; }
+        
+        .baixa .header { background-color: #007bff; }
+        .baixa .due-date { color: #007bff; }
+        .baixa .priority-badge { background-color: #28a745; color: white; }
+    </style>
+</head>
+<body>
+    <div class="preview-container">
+        <div class="preview-header">
+            <h1>🔔 Preview dos Templates de Email</h1>
+            <p>Sistema de Notificações de Tarefas - Cerrado Engenharia</p>
+            <p><strong>Exemplos para cada prioridade de tarefa</strong></p>
+        </div>
+
+        <!-- EXEMPLO URGENTE - VENCIDA -->
+        <div class="email-preview">
+            <div class="email-header">📧 URGENTE - Tarefa Vencida (2 dias de atraso)</div>
+            <div class="email-content">
+                <div class="container urgente">
+                    <div class="header">
+                        <h1>🔔 Notificação de Tarefa</h1>
+                    </div>
+                    
+                    <div class="content">
+                        <div style="margin-bottom: 20px;">
+                            <span class="priority-badge">URGENTE</span>
+                        </div>
+                        
+                        <h2>Revisão Final do Projeto Ponte Nova</h2>
+                        
+                        <div class="task-info">
+                            <p><strong>📋 ID da Tarefa:</strong> TSK-2024-001</p>
+                            <p><strong>👤 Responsável:</strong> João Silva</p>
+                            <p><strong>🏢 Cliente:</strong> Prefeitura Municipal</p>
+                            <p><strong>📅 Data de Vencimento:</strong> <span class="due-date">15/12/2024 (VENCIDA - 2 dias de atraso)</span></p>
+                        </div>
+                        
+                        <div style="margin: 30px 0;">
+                            <a href="https://cerrado-engenharia.web.app/tasks" class="btn">
+                                📱 Acessar Sistema
+                            </a>
+                        </div>
+                        
+                        <div class="tip-box">
+                            <p class="tip-text">
+                                <strong>💡 Dica:</strong> Acesse o sistema para visualizar todos os detalhes da tarefa e atualizar seu status.
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="footer">
+                        <p>Este é um email automático do Sistema Cerrado Engenharia.</p>
+                        <p>Para dúvidas, entre em contato com a equipe de TI.</p>
+                        <p style="margin-top: 15px; font-size: 10px;">
+                            Email enviado em 17/12/2024 09:30:00
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- EXEMPLO ALTA - VENCE HOJE -->
+        <div class="email-preview">
+            <div class="email-header">📧 ALTA - Vence Hoje</div>
+            <div class="email-content">
+                <div class="container alta">
+                    <div class="header">
+                        <h1>🔔 Notificação de Tarefa</h1>
+                    </div>
+                    
+                    <div class="content">
+                        <div style="margin-bottom: 20px;">
+                            <span class="priority-badge">ALTA</span>
+                        </div>
+                        
+                        <h2>Análise Estrutural - Edifício Centro</h2>
+                        
+                        <div class="task-info">
+                            <p><strong>📋 ID da Tarefa:</strong> TSK-2024-002</p>
+                            <p><strong>👤 Responsável:</strong> Maria Santos</p>
+                            <p><strong>🏢 Cliente:</strong> Construtora ABC</p>
+                            <p><strong>📅 Data de Vencimento:</strong> <span class="due-date">17/12/2024 (VENCE HOJE)</span></p>
+                        </div>
+                        
+                        <div style="margin: 30px 0;">
+                            <a href="https://cerrado-engenharia.web.app/tasks" class="btn">
+                                📱 Acessar Sistema
+                            </a>
+                        </div>
+                        
+                        <div class="tip-box">
+                            <p class="tip-text">
+                                <strong>💡 Dica:</strong> Acesse o sistema para visualizar todos os detalhes da tarefa e atualizar seu status.
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="footer">
+                        <p>Este é um email automático do Sistema Cerrado Engenharia.</p>
+                        <p>Para dúvidas, entre em contato com a equipe de TI.</p>
+                        <p style="margin-top: 15px; font-size: 10px;">
+                            Email enviado em 17/12/2024 10:00:00
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- EXEMPLO MÉDIA - VENCE AMANHÃ -->
+        <div class="email-preview">
+            <div class="email-header">📧 MÉDIA - Vence Amanhã</div>
+            <div class="email-content">
+                <div class="container media">
+                    <div class="header">
+                        <h1>🔔 Notificação de Tarefa</h1>
+                    </div>
+                    
+                    <div class="content">
+                        <div style="margin-bottom: 20px;">
+                            <span class="priority-badge">MÉDIA</span>
+                        </div>
+                        
+                        <h2>Elaboração de Relatório Técnico</h2>
+                        
+                        <div class="task-info">
+                            <p><strong>📋 ID da Tarefa:</strong> TSK-2024-003</p>
+                            <p><strong>👤 Responsável:</strong> Carlos Oliveira</p>
+                            <p><strong>📅 Data de Vencimento:</strong> <span class="due-date">18/12/2024 (VENCE AMANHÃ)</span></p>
+                        </div>
+                        
+                        <div style="margin: 30px 0;">
+                            <a href="https://cerrado-engenharia.web.app/tasks" class="btn">
+                                📱 Acessar Sistema
+                            </a>
+                        </div>
+                        
+                        <div class="tip-box">
+                            <p class="tip-text">
+                                <strong>💡 Dica:</strong> Acesse o sistema para visualizar todos os detalhes da tarefa e atualizar seu status.
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="footer">
+                        <p>Este é um email automático do Sistema Cerrado Engenharia.</p>
+                        <p>Para dúvidas, entre em contato com a equipe de TI.</p>
+                        <p style="margin-top: 15px; font-size: 10px;">
+                            Email enviado em 17/12/2024 14:00:00
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- EXEMPLO BAIXA - LEMBRETE -->
+        <div class="email-preview">
+            <div class="email-header">📧 BAIXA - Lembrete (1 dia restante)</div>
+            <div class="email-content">
+                <div class="container baixa">
+                    <div class="header">
+                        <h1>🔔 Notificação de Tarefa</h1>
+                    </div>
+                    
+                    <div class="content">
+                        <div style="margin-bottom: 20px;">
+                            <span class="priority-badge">BAIXA</span>
+                        </div>
+                        
+                        <h2>Organização de Documentos</h2>
+                        
+                        <div class="task-info">
+                            <p><strong>📋 ID da Tarefa:</strong> TSK-2024-004</p>
+                            <p><strong>👤 Responsável:</strong> Ana Costa</p>
+                            <p><strong>🏢 Cliente:</strong> Empresa XYZ</p>
+                            <p><strong>📅 Data de Vencimento:</strong> <span class="due-date">18/12/2024 (1 dia restante)</span></p>
+                        </div>
+                        
+                        <div style="margin: 30px 0;">
+                            <a href="https://cerrado-engenharia.web.app/tasks" class="btn">
+                                📱 Acessar Sistema
+                            </a>
+                        </div>
+                        
+                        <div class="tip-box">
+                            <p class="tip-text">
+                                <strong>💡 Dica:</strong> Acesse o sistema para visualizar todos os detalhes da tarefa e atualizar seu status.
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="footer">
+                        <p>Este é um email automático do Sistema Cerrado Engenharia.</p>
+                        <p>Para dúvidas, entre em contato com a equipe de TI.</p>
+                        <p style="margin-top: 15px; font-size: 10px;">
+                            Email enviado em 17/12/2024 16:00:00
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="preview-header">
+            <h3>📋 Exemplos de Assuntos por Situação</h3>
+            <div style="text-align: left; max-width: 800px; margin: 0 auto;">
+                <p><strong>🚨 URGENTE TAREFA VENCIDA:</strong> Revisão Final do Projeto Ponte Nova</p>
+                <p><strong>⚠️ ALTA TAREFA VENCE HOJE:</strong> Análise Estrutural - Edifício Centro</p>
+                <p><strong>📋 MÉDIA TAREFA VENCE AMANHÃ:</strong> Elaboração de Relatório Técnico</p>
+                <p><strong>📌 BAIXA Lembrete de Tarefa:</strong> Organização de Documentos</p>
+            </div>
+            
+            <h3>🎨 Características do Design</h3>
+            <div style="text-align: left; max-width: 800px; margin: 0 auto;">
+                <ul>
+                    <li><strong>Cores por Prioridade:</strong> Vermelho (Urgente), Laranja (Alta), Amarelo (Média), Azul/Verde (Baixa)</li>
+                    <li><strong>Design Responsivo:</strong> Funciona bem em desktop e mobile</li>
+                    <li><strong>Informações Claras:</strong> ID, responsável, cliente, data de vencimento</li>
+                    <li><strong>Call-to-Action:</strong> Botão direto para acessar o sistema</li>
+                    <li><strong>Formatação Brasileira:</strong> Datas e horários no padrão brasileiro</li>
+                    <li><strong>Visual Profissional:</strong> Identidade visual da empresa</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 
