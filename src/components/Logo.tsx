@@ -5,9 +5,10 @@ import { auth } from '@/config/firebase';
 
 interface LogoProps {
   variant?: 'default' | 'dark';
+  showText?: boolean;
 }
 
-const Logo = ({ variant = 'default' }: LogoProps) => {
+const Logo = ({ variant = 'default', showText }: LogoProps) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const navigate = useNavigate();
 

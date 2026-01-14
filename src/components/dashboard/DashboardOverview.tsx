@@ -5,7 +5,7 @@ import TasksList from "./TasksList";
 import EventsList from "./EventsList";
 import { 
   Users, BarChart3, CheckSquare, AlertTriangle, 
-  LineChart, PieChart, Clock, User
+  LineChart, PieChart, Clock, User, BookOpen, GraduationCap
 } from "lucide-react";
 import { 
   ChartContainer, 
@@ -96,12 +96,16 @@ const DashboardOverview = () => {
       {/* Primeira linha - Estatísticas gerais */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard 
-          title="Total de Clientes" 
-          value={data.clientsCount} 
-          icon={<User size={24} />} 
-          description={data.clientsBreakdown.prospects > 0 ? 
-            `${data.clientsBreakdown.regular} regulares + ${data.clientsBreakdown.prospects} prospects` :
-            `${data.clientsBreakdown.regular} clientes cadastrados`}
+          title="Total de Cursos" 
+          value={data.coursesCount || 0} 
+          icon={<BookOpen size={24} />} 
+          description={`${data.coursesCount || 0} cursos cadastrados`}
+        />
+        <StatCard 
+          title="Total de Aulas" 
+          value={data.lessonsCount || 0} 
+          icon={<GraduationCap size={24} />} 
+          description={`${data.lessonsCount || 0} aulas cadastradas`}
         />
         <StatCard 
           title="Tarefas" 
@@ -114,12 +118,6 @@ const DashboardOverview = () => {
           value={data.collaboratorsCount} 
           icon={<Users size={24} />} 
           description="Equipe ativa"
-        />
-        <StatCard 
-          title="Tarefas Prioritárias" 
-          value={data.tasksByPriority.find(t => t.name === "Urgente")?.value || 0} 
-          icon={<AlertTriangle size={24} />} 
-          description="Necessitam atenção imediata"
         />
       </div>
 

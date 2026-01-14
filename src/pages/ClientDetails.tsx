@@ -18,7 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { db, auth, storage } from '@/config/firebase';
 import { doc, getDoc, collection, getDocs, query, where, orderBy, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
-import { canViewClient } from '@/utils/hierarchyUtils';
+import { canViewClient, normalizeHierarchyLevel } from '@/utils/hierarchyUtils';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { onAuthStateChanged } from 'firebase/auth';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -168,6 +168,7 @@ const ClientDetailsPage = () => {
 
   // Estado para controle de acesso às pastas - INICIALIZAR SEM FILTRO ATÉ CARREGAR OS DADOS REAIS
   const [userHierarchyLevel, setUserHierarchyLevel] = useState<HierarchyLevel | null>(null);
+  const [userHierarchyLevelRaw, setUserHierarchyLevelRaw] = useState<string | null>(null); // Valor original do banco
 
   // Estados para controle dos diálogos de confirmação
   const [deleteFolderConfirmOpen, setDeleteFolderConfirmOpen] = useState(false);
@@ -197,7 +198,8 @@ const ClientDetailsPage = () => {
           const data = userDoc.data();
           // Mostrar apenas o firstName
           const displayName = data.firstName || "Usuário";
-          const hierarchyLevel = data.hierarchyLevel as HierarchyLevel || 'Estagiário/Auxiliar';
+          const hierarchyLevelRaw = data.hierarchyLevel || 'Nível 5';
+          const hierarchyLevel = normalizeHierarchyLevel(hierarchyLevelRaw);
 
           setUserData({
             name: displayName,
@@ -207,6 +209,7 @@ const ClientDetailsPage = () => {
           
           // Definir o nível hierárquico para controle de acesso às pastas
           setUserHierarchyLevel(hierarchyLevel);
+          setUserHierarchyLevelRaw(hierarchyLevelRaw); // Manter valor original para comparações específicas
         } else {
           // Se não encontrou na coleção unificada, definir dados padrão
           console.log("❌ ClientDetails - Usuário não encontrado na coleção unificada");
@@ -348,7 +351,7 @@ const ClientDetailsPage = () => {
         
         // Verificar se o usuário é Cliente Externo e tem acesso a este cliente
         const currentUser = auth.currentUser;
-        if (currentUser && userHierarchyLevel === "Cliente Externo") {
+        if (currentUser && userHierarchyLevelRaw === "Cliente Externo") {
           // Buscar dados do colaborador para obter o clientId vinculado
           const collaboratorDoc = await getDoc(doc(db, "collaborators_unified", currentUser.uid));
           if (collaboratorDoc.exists()) {
@@ -1611,13 +1614,13 @@ const ClientDetailsPage = () => {
 
               <Tabs value={activeTab} onValueChange={(value: "info" | "documents") => {
                   // Cliente Externo só pode ver documentos
-                  if (userHierarchyLevel === "Cliente Externo" && value === "info") {
+                  if (userHierarchyLevelRaw === "Cliente Externo" && value === "info") {
                     return;
                   }
                   setActiveTab(value);
                 }} className="space-y-6">
                 <TabsList>
-                  {userHierarchyLevel !== "Cliente Externo" && (
+                  {userHierarchyLevelRaw !== "Cliente Externo" && (
                     <TabsTrigger value="info">Informações</TabsTrigger>
                   )}
                   <TabsTrigger value="documents">Documentos</TabsTrigger>

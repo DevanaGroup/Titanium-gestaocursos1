@@ -651,8 +651,8 @@ export const hasAccessToFolder = (folder: Folder, userHierarchyLevel: HierarchyL
 };
 
 export const filterFoldersByPermission = (folders: Folder[], userHierarchyLevel: HierarchyLevel): Folder[] => {
-  // Se for Presidente, não filtrar NADA
-  if (userHierarchyLevel === 'Presidente') {
+  // Se for Nível 1 (equivalente a Presidente), não filtrar NADA
+  if (userHierarchyLevel === 'Nível 1') {
     return folders;
   }
   

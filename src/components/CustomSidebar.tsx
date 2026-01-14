@@ -12,7 +12,7 @@ import { collection, query, where, getDocs } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { auth, db } from '@/config/firebase';
 import { doc, getDoc } from 'firebase/firestore';
-import { hasPermission, hasFinancialAccess, hasSettingsAccess, getLevelNumber } from "@/utils/hierarchyUtils";
+import { hasPermission, hasFinancialAccess, hasSettingsAccess, getLevelNumber, normalizeHierarchyLevel } from "@/utils/hierarchyUtils";
 import { HierarchyLevel } from "@/types";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet, SheetContent, SheetOverlay, SheetPortal } from "@/components/ui/sheet";
@@ -41,6 +41,7 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
   const location = useLocation();
   const isMobile = useIsMobile();
   const [userRole, setUserRole] = useState<HierarchyLevel>('Nível 5');
+  const [userRoleRaw, setUserRoleRaw] = useState<string>('Nível 5'); // Valor original do banco
   const [isLoading, setIsLoading] = useState(true);
   const [tasksExpanded, setTasksExpanded] = useState(false);
   const [coursesExpanded, setCoursesExpanded] = useState(false);
@@ -239,7 +240,7 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
   // Determinar qual menu usar baseado na hierarquia (memoizado para evitar re-renderizações)
   // Nível 1 vê todos os menus (usar directorTiMenuItems que tem tudo)
   const menuItems = useMemo(() => {
-    if (userRole === 'Cliente Externo' || userRole === 'Cliente') {
+    if (userRoleRaw === 'Cliente Externo' || userRoleRaw === 'Cliente') {
       return clientExternalMenuItems;
     }
     
@@ -268,6 +269,7 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
         if (!currentUser) {
           if (isMounted) {
             setUserRole('Nível 5');
+            setUserRoleRaw('Nível 5');
             setIsLoading(false);
           }
           return;
@@ -279,11 +281,13 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
         
         if (userDocRef.exists()) {
           const userData = userDocRef.data();
-          const role = userData.hierarchyLevel || 'Nível 5';
+          const roleRaw = userData.hierarchyLevel || 'Nível 5';
+          const role = normalizeHierarchyLevel(roleRaw);
           setUserRole(role);
+          setUserRoleRaw(roleRaw); // Manter valor original para comparações específicas
           
           // Se for Cliente Externo ou Cliente, buscar o ID do cliente vinculado
-          if (role === 'Cliente Externo' || role === 'Cliente') {
+          if (roleRaw === 'Cliente Externo' || roleRaw === 'Cliente') {
             const clientsQuery = query(
               collection(db, 'clients'),
               where('collaboratorId', '==', currentUser.uid)
@@ -297,12 +301,14 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
         } else {
           if (isMounted) {
             setUserRole('Nível 5');
+            setUserRoleRaw('Nível 5');
           }
         }
       } catch (error) {
         console.error("Erro ao buscar papel do usuário:", error);
         if (isMounted) {
           setUserRole('Nível 5');
+          setUserRoleRaw('Nível 5');
         }
       } finally {
         if (isMounted) {
@@ -317,6 +323,7 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
         fetchUserRole();
       } else if (isMounted) {
         setUserRole('Nível 5');
+        setUserRoleRaw('Nível 5');
         setIsLoading(false);
       }
     });
@@ -442,7 +449,7 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
                         className={`
                           w-full flex items-center justify-start px-2 
                           py-1.5 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
-                          ${location.pathname === '/tasks' && location.pathname !== '/tasks/archived'
+                          ${location.pathname === '/tasks' && !location.pathname.startsWith('/tasks/archived')
                             ? 'bg-red-500 text-white shadow-sm hover:bg-red-500 hover:text-white' 
                             : 'text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200'
                           }
@@ -461,7 +468,7 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
                         <span className="text-sm">Tarefas</span>
                       </Button>
                       {/* Cliente Externo e Cliente não podem ver tarefas arquivadas */}
-                      {(userRole !== 'Cliente Externo' && userRole !== 'Cliente') && (
+                      {(userRoleRaw !== 'Cliente Externo' && userRoleRaw !== 'Cliente') && (
                         <Button
                           variant="ghost"
                           type="button"
@@ -595,7 +602,7 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
                       setTasksExpanded(!tasksExpanded);
                     } else if (item.id === 'courses') {
                       setCoursesExpanded(!coursesExpanded);
-                    } else if (item.id === 'my-folder' && (userRole === 'Cliente Externo' || userRole === 'Cliente')) {
+                    } else if (item.id === 'my-folder' && (userRoleRaw === 'Cliente Externo' || userRoleRaw === 'Cliente')) {
                       // Se for "Minha Pasta" e Cliente Externo, navegar para a rota do cliente
                       if (clientId) {
                         navigate(`/client/${clientId}`, { state: { activeTab: 'documents' } });

@@ -48,7 +48,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { db } from "@/config/firebase";
-import { collection, getDocs, addDoc, deleteDoc, doc, serverTimestamp, setDoc, query, where } from "firebase/firestore";
+import { collection, getDocs, addDoc, deleteDoc, doc, serverTimestamp, setDoc, updateDoc, query, where } from "firebase/firestore";
 import { Collaborator, HierarchyLevel, CustomPermissions } from "@/types";
 import { createUserWithEmailAndPassword, deleteUser, getAuth, updateProfile, signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/config/firebase";
@@ -145,56 +145,80 @@ export const CollaboratorManagement = () => {
     customPermissions: undefined
   });
 
-  useEffect(() => {
-    const fetchCollaborators = async () => {
-      setIsLoading(true);
-      try {
-        console.log("🔍 CollaboratorManagement - Iniciando busca de colaboradores...");
+  // Função para buscar colaboradores (extraída para poder ser chamada novamente)
+  const fetchCollaborators = async () => {
+    setIsLoading(true);
+    try {
+      console.log("🔍 CollaboratorManagement - Iniciando busca de colaboradores...");
+      
+      // Buscar na coleção users
+      const usersCollection = collection(db, "users");
+      const usersSnapshot = await getDocs(usersCollection);
+      
+      if (usersSnapshot.size > 0) {
+        console.log("✅ CollaboratorManagement - Usando coleção users:", usersSnapshot.size, "usuários");
         
-        // Buscar na coleção users
-        const usersCollection = collection(db, "users");
-        const usersSnapshot = await getDocs(usersCollection);
-        
-        if (usersSnapshot.size > 0) {
-          console.log("✅ CollaboratorManagement - Usando coleção users:", usersSnapshot.size, "usuários");
+          // Buscar também da coleção collaborators_unified para pegar avatares atualizados
+          const unifiedCollection = collection(db, "collaborators_unified");
+          const unifiedSnapshot = await getDocs(unifiedCollection);
+          const unifiedDataMap = new Map();
+          
+          unifiedSnapshot.docs.forEach(doc => {
+            const data = doc.data();
+            if (data.uid) {
+              unifiedDataMap.set(data.uid, data);
+            }
+          });
           
           const collaboratorsList = usersSnapshot.docs.map(doc => {
             const data = doc.data();
+            const uid = data.uid || doc.id;
+            const unifiedData = unifiedDataMap.get(uid);
+            
+            // Priorizar avatar da coleção unificada, depois users
+            const avatar = unifiedData?.avatar || unifiedData?.photoURL || data.avatar || data.photoURL || "";
+            
+            // Debug: log do avatar para verificar
+            if (uid && avatar) {
+              console.log(`🖼️ Avatar encontrado para ${data.firstName}:`, avatar);
+            }
+            
             return {
               id: doc.id,
-              uid: data.uid || doc.id,
-              firstName: data.firstName,
-              lastName: data.lastName,
-              email: data.email,
+              uid: uid,
+              firstName: data.firstName || "",
+              lastName: data.lastName || "",
+              email: data.email || "",
               phone: data.phone || "",
               whatsapp: data.whatsapp || "",
               birthDate: data.birthDate?.toDate ? data.birthDate.toDate() : (data.birthDate ? new Date(data.birthDate) : new Date()),
               hierarchyLevel: data.hierarchyLevel as HierarchyLevel,
               customPermissions: data.customPermissions || undefined,
-              avatar: data.avatar || data.photoURL,
+              avatar: avatar,
               createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt ? new Date(data.createdAt) : new Date()),
               updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : (data.updatedAt ? new Date(data.updatedAt) : new Date()),
               source: 'users' as const
             };
           });
-          
-          console.log("📋 CollaboratorManagement - Usuários carregados:", collaboratorsList.length);
-          setCollaborators(collaboratorsList);
-        } else {
-          console.log("❌ CollaboratorManagement - Nenhum usuário encontrado na coleção users");
-          toast.error("Nenhum usuário encontrado");
-          setCollaborators([]);
-        }
         
-      } catch (error) {
-        console.error("❌ CollaboratorManagement - Erro ao buscar colaboradores:", error);
-        toast.error("Não foi possível carregar os colaboradores");
+        console.log("📋 CollaboratorManagement - Usuários carregados:", collaboratorsList.length);
+        setCollaborators(collaboratorsList);
+      } else {
+        console.log("❌ CollaboratorManagement - Nenhum usuário encontrado na coleção users");
+        toast.error("Nenhum usuário encontrado");
         setCollaborators([]);
-      } finally {
-        setIsLoading(false);
       }
-    };
+      
+    } catch (error) {
+      console.error("❌ CollaboratorManagement - Erro ao buscar colaboradores:", error);
+      toast.error("Não foi possível carregar os colaboradores");
+      setCollaborators([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchCollaborators();
   }, []);
 
@@ -761,6 +785,12 @@ export const CollaboratorManagement = () => {
         if (originalCollaborator.hierarchyLevel !== editingCollaborator.hierarchyLevel) {
           changes['Nível Hierárquico'] = { from: originalCollaborator.hierarchyLevel, to: editingCollaborator.hierarchyLevel };
         }
+        if (originalCollaborator.avatar !== editingCollaborator.avatar) {
+          changes['Avatar'] = { 
+            from: originalCollaborator.avatar || 'Sem avatar', 
+            to: editingCollaborator.avatar || 'Sem avatar'
+          };
+        }
         if (JSON.stringify(originalCollaborator.customPermissions) !== JSON.stringify(editingCollaborator.customPermissions)) {
           changes['Permissões'] = { 
             from: originalCollaborator.customPermissions ? 'Customizadas' : 'Padrão', 
@@ -773,32 +803,65 @@ export const CollaboratorManagement = () => {
       const userDocRef = doc(db, 'users', editingCollaborator.uid);
       const userDoc = await getDoc(userDocRef);
       
+      const updateData: any = {
+        firstName: editingCollaborator.firstName,
+        lastName: editingCollaborator.lastName,
+        displayName: editingCollaborator.firstName,
+        email: editingCollaborator.email,
+        hierarchyLevel: editingCollaborator.hierarchyLevel,
+        customPermissions: editingCollaborator.customPermissions || null,
+        updatedAt: serverTimestamp()
+      };
+      
+      // Incluir avatar se existir
+      if (editingCollaborator.avatar) {
+        updateData.avatar = editingCollaborator.avatar;
+        updateData.photoURL = editingCollaborator.avatar;
+      }
+      
       if (userDoc.exists()) {
         console.log('💾 Atualizando coleção users...');
-        await setDoc(userDocRef, {
-          firstName: editingCollaborator.firstName,
-          lastName: editingCollaborator.lastName,
-          displayName: editingCollaborator.firstName,
-          email: editingCollaborator.email,
-          hierarchyLevel: editingCollaborator.hierarchyLevel,
-          customPermissions: editingCollaborator.customPermissions || null,
-          updatedAt: serverTimestamp()
-        }, { merge: true });
+        await setDoc(userDocRef, updateData, { merge: true });
         console.log('✅ Coleção users atualizada com sucesso!');
       } else {
         console.log('⚠️ Usuário não encontrado na coleção users - criando entrada...');
         // Se não existir, criar
         await setDoc(userDocRef, {
           uid: editingCollaborator.uid,
-          firstName: editingCollaborator.firstName,
-          lastName: editingCollaborator.lastName,
-          displayName: editingCollaborator.firstName,
+          ...updateData,
+          createdAt: serverTimestamp()
+        });
+      }
+
+      // ✅ TAMBÉM ATUALIZAR NA COLEÇÃO COLLABORATORS_UNIFIED para sincronização
+      const collaboratorUnifiedRef = doc(db, 'collaborators_unified', editingCollaborator.uid);
+      const collaboratorUnifiedDoc = await getDoc(collaboratorUnifiedRef);
+      
+      const unifiedUpdateData: any = {
+        firstName: editingCollaborator.firstName,
+        lastName: editingCollaborator.lastName,
+        updatedAt: new Date()
+      };
+      
+      // Incluir avatar se existir
+      if (editingCollaborator.avatar) {
+        unifiedUpdateData.avatar = editingCollaborator.avatar;
+        unifiedUpdateData.photoURL = editingCollaborator.avatar;
+      }
+      
+      if (collaboratorUnifiedDoc.exists()) {
+        console.log('💾 Atualizando coleção collaborators_unified...');
+        await updateDoc(collaboratorUnifiedRef, unifiedUpdateData);
+        console.log('✅ Coleção collaborators_unified atualizada com sucesso!');
+      } else {
+        console.log('⚠️ Usuário não encontrado na coleção collaborators_unified - criando entrada...');
+        // Se não existir, criar com dados básicos
+        await setDoc(collaboratorUnifiedRef, {
+          uid: editingCollaborator.uid,
+          ...unifiedUpdateData,
           email: editingCollaborator.email,
           hierarchyLevel: editingCollaborator.hierarchyLevel,
-          customPermissions: editingCollaborator.customPermissions || null,
-          photoURL: null,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
+          createdAt: new Date()
         });
       }
 
@@ -815,12 +878,8 @@ export const CollaboratorManagement = () => {
         changes
       );
 
-      // Atualizar a lista local
-      setCollaborators(prev => prev.map(collab => 
-        collab.id === editingCollaborator.id 
-          ? { ...editingCollaborator, updatedAt: new Date() }
-          : collab
-      ));
+      // Recarregar a lista completa do banco de dados para garantir que todos os dados estão atualizados
+      await fetchCollaborators();
 
       toast.success("✅ Colaborador atualizado com sucesso!");
       setIsEditDialogOpen(false);
@@ -851,7 +910,7 @@ export const CollaboratorManagement = () => {
       <CardHeader>
         <CardTitle>Adicionar Novo Colaborador</CardTitle>
         <CardDescription>
-          Preencha os dados do novo colaborador. Você pode criar níveis: {getManagedLevels(currentUserData?.hierarchyLevel || "Estagiário/Auxiliar").join(", ")}
+          Preencha os dados do novo colaborador. Você pode criar níveis: {getManagedLevels(currentUserData?.hierarchyLevel || "Nível 5").join(", ")}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -959,7 +1018,7 @@ export const CollaboratorManagement = () => {
           </div>
           
           {/* Seção de Permissões Customizáveis */}
-          {canManagePermissions(currentUserData?.hierarchyLevel || "Estagiário/Auxiliar") && (
+          {canManagePermissions(currentUserData?.hierarchyLevel || "Nível 5") && (
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <Label>Permissões Customizadas</Label>
@@ -1013,7 +1072,7 @@ export const CollaboratorManagement = () => {
           
           <Button 
             onClick={() => setIsAddDialogOpen(true)}
-            className="bg-cerrado-green2 hover:bg-cerrado-green1"
+            className="bg-red-500 hover:bg-red-600 text-white"
           >
             <Plus className="mr-2 h-4 w-4" />
             Adicionar Colaborador
@@ -1220,8 +1279,8 @@ export const CollaboratorManagement = () => {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Nome</TableHead>
-              <TableHead>E-mail</TableHead>
+              <TableHead className="text-center">Nome</TableHead>
+              <TableHead className="text-center">E-mail</TableHead>
               <TableHead className="text-center">Nível Hierárquico</TableHead>
               <TableHead className="text-center">Data de Criação</TableHead>
               <TableHead className="text-center">Ações</TableHead>
@@ -1233,17 +1292,43 @@ export const CollaboratorManagement = () => {
                 <TableCell className="font-medium">
                   <div className="flex items-center space-x-3">
                     <Avatar className="w-8 h-8">
-                      <AvatarImage src={collaborator.avatar} alt={`${collaborator.firstName} ${collaborator.lastName}`} />
+                      {collaborator.avatar && collaborator.avatar.trim() !== "" ? (
+                        <AvatarImage 
+                          src={collaborator.avatar} 
+                          alt={`${collaborator.firstName} ${collaborator.lastName || ''}`}
+                          onError={(e) => {
+                            // Se a imagem falhar ao carregar, esconder o erro e mostrar o fallback
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                      ) : null}
                       <AvatarFallback>
-                        {collaborator.firstName.charAt(0).toUpperCase()}{collaborator.lastName.charAt(0).toUpperCase()}
+                        {collaborator.firstName?.charAt(0).toUpperCase() || ''}{collaborator.lastName?.charAt(0).toUpperCase() || ''}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="truncate max-w-[200px]" title={collaborator.firstName}>
-                      {collaborator.firstName}
+                    <span 
+                      className="truncate" 
+                      title={`${collaborator.firstName} ${collaborator.lastName || ''}`.trim()}
+                      style={{ maxWidth: '20ch', display: 'inline-block' }}
+                    >
+                      {(() => {
+                        const fullName = `${collaborator.firstName} ${collaborator.lastName || ''}`.trim();
+                        return fullName.length > 20 ? `${fullName.substring(0, 20)}...` : fullName;
+                      })()}
                     </span>
                   </div>
                 </TableCell>
-                <TableCell>{collaborator.email}</TableCell>
+                <TableCell>
+                  <span 
+                    className="truncate" 
+                    title={collaborator.email}
+                    style={{ maxWidth: '20ch', display: 'inline-block' }}
+                  >
+                    {collaborator.email && collaborator.email.length > 20 
+                      ? `${collaborator.email.substring(0, 20)}...`
+                      : collaborator.email}
+                  </span>
+                </TableCell>
                 <TableCell className="text-center">
                   <div className="flex items-center justify-center space-x-2">
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${getHierarchyColor(collaborator.hierarchyLevel || "Nível 5")}`}>
@@ -1636,7 +1721,7 @@ export const CollaboratorManagement = () => {
             <Button variant="outline" onClick={() => setIsDetailsDialogOpen(false)}>
               Fechar
             </Button>
-            {selectedCollaborator && hasPermission(currentUserData?.hierarchyLevel || "Estagiário/Auxiliar", 'manage_department') && (
+            {selectedCollaborator && hasPermission(currentUserData?.hierarchyLevel || "Nível 5", 'manage_department') && (
               <Button onClick={() => {
                 setIsDetailsDialogOpen(false);
                 handleEditCollaborator(selectedCollaborator);

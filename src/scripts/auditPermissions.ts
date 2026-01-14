@@ -5,7 +5,8 @@ import {
   hasFinancialAccess, 
   hasChatbotAccess,
   canManageLevel,
-  getManagedLevels 
+  getManagedLevels,
+  getLevelNumber
 } from '../utils/hierarchyUtils';
 import { HierarchyLevel } from '../types';
 
@@ -103,48 +104,34 @@ function auditarPermissoes() {
     // Verificar quais níveis pode gerenciar
     const podeGerenciar = getManagedLevels(cargo);
     
-    // Observações especiais
+    // Observações especiais baseadas no número do nível
     const observacoes: string[] = [];
+    const levelNum = getLevelNumber(cargo);
     
-    if (cargo === 'Presidente') {
+    if (levelNum === 1) {
       observacoes.push('🔝 Maior nível hierárquico');
-      observacoes.push('⚠️ Não pode deletar outros Presidentes');
+      observacoes.push('⚠️ Não pode deletar outros do mesmo nível');
       observacoes.push('🎯 Acesso total ao sistema');
     }
     
-    if (cargo === 'Diretor de TI') {
-      observacoes.push('💻 Responsável pela manutenção do sistema');
-      observacoes.push('🔧 Acesso total aos módulos (equivalente ao Presidente + módulos comerciais)');
-      observacoes.push('📊 Acesso completo a relatórios financeiros');
-      observacoes.push('🛍️ Acesso a módulos comerciais (Dashboard, Prospects, Pipeline)');
-      observacoes.push('🛠️ Gerenciamento técnico do sistema');
+    if (levelNum === 2) {
+      observacoes.push('📊 Alto nível de permissões');
+      observacoes.push('✅ Pode aprovar despesas');
+      observacoes.push('✅ Acesso ao ChatBot');
     }
     
-    if (cargo === 'Diretor Financeiro') {
-      observacoes.push('💰 Especialista em módulos financeiros');
-      observacoes.push('📊 Acesso especializado a relatórios financeiros');
+    if (levelNum === 3) {
+      observacoes.push('⚙️ Permissões intermediárias');
+      observacoes.push('✅ Pode gerenciar departamento');
+      observacoes.push('✅ Pode ver relatórios financeiros');
     }
     
-    if (cargo === 'Diretor Comercial') {
-      observacoes.push('🛍️ Acesso a módulos comerciais específicos');
-      observacoes.push('🎯 Dashboard comercial, Prospects, Pipeline');
-      observacoes.push('❌ SEM acesso a módulos financeiros');
+    if (levelNum === 4) {
+      observacoes.push('📝 Permissões básicas');
+      observacoes.push('⚠️ Acesso limitado');
     }
     
-    if (cargo === 'Comercial') {
-      observacoes.push('🛍️ Acesso apenas a módulos comerciais');
-      observacoes.push('📊 Dashboard comercial próprio');
-      observacoes.push('❌ SEM permissões de gestão');
-    }
-    
-    if (cargo === 'Engenheiro') {
-      observacoes.push('⚙️ Execução de projetos de engenharia');
-      observacoes.push('🔍 Pode ver todos os clientes (acesso facilitado)');
-      observacoes.push('📋 Pode ver todas as tarefas');
-      observacoes.push('👥 Pode gerenciar permissões de outros usuários');
-    }
-    
-    if (cargo === 'Estagiário/Auxiliar') {
+    if (levelNum === 5) {
       observacoes.push('📚 Nível inicial - permissões mínimas');
       observacoes.push('🔒 Apenas dados próprios');
     }

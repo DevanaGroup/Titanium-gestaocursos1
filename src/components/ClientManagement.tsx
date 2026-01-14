@@ -1111,7 +1111,7 @@ export const ClientManagement = () => {
                   
                   <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                     <DialogTrigger asChild>
-                      <Button className="bg-cerrado-green2 hover:bg-cerrado-green1">
+                      <Button className="bg-red-500 hover:bg-red-600 text-white">
                         <Plus className="mr-2 h-4 w-4" />
                         Novo Cliente
                       </Button>

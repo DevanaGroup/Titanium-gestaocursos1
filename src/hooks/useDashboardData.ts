@@ -16,6 +16,8 @@ export type DashboardData = {
   tasksByStatus: { name: string; value: number }[];
   tasksByPriority: { name: string; value: number }[];
   collaboratorsCount: number;
+  coursesCount: number;
+  lessonsCount: number;
   tasksByCollaborator: { name: string; value: number }[];
   monthlyTaskCompletion: { name: string; value: number }[];
   urgentTasks: {
@@ -85,6 +87,24 @@ export const useDashboardData = () => {
         } catch (error) {
           console.log('⚠️ Dashboard: Erro ao buscar usuários:', error);
           collaboratorsData = [];
+        }
+
+        // Buscar cursos
+        let coursesCount = 0;
+        try {
+          const coursesSnapshot = await getDocs(collection(db, "courses"));
+          coursesCount = coursesSnapshot.docs.length;
+        } catch (error) {
+          console.log('⚠️ Dashboard: Erro ao buscar cursos:', error);
+        }
+
+        // Buscar aulas
+        let lessonsCount = 0;
+        try {
+          const lessonsSnapshot = await getDocs(collection(db, "lessons"));
+          lessonsCount = lessonsSnapshot.docs.length;
+        } catch (error) {
+          console.log('⚠️ Dashboard: Erro ao buscar aulas:', error);
         }
 
         // Calcular contagem total de clientes CORRETAMENTE:
@@ -225,6 +245,8 @@ export const useDashboardData = () => {
           tasksByStatus,
           tasksByPriority,
           collaboratorsCount: collaboratorsData.length,
+          coursesCount,
+          lessonsCount,
           tasksByCollaborator,
           monthlyTaskCompletion,
           urgentTasks,

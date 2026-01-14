@@ -161,14 +161,14 @@ async function testDirectorTiPermissions() {
   console.log('🔧 JUSTIFICATIVA: Diretor de TI será responsável pela manutenção do sistema');
   console.log('=' .repeat(80));
 
-  // Comparar Diretor de TI vs Presidente
-  comparePermissions('Diretor de TI', 'Presidente');
+  // Comparar Nível 1 vs Nível 1 (Diretor de TI e Presidente mapeiam para Nível 1)
+  comparePermissions('Nível 1', 'Nível 1');
 
   console.log('\n' + '='.repeat(80));
   console.log('🎯 ANÁLISE INDIVIDUAL DO DIRETOR DE TI');
   console.log('='.repeat(80));
 
-  const directorTI = 'Diretor de TI';
+  const directorTI: HierarchyLevel = 'Nível 1'; // Diretor de TI mapeia para Nível 1
   
   console.log(`\n📋 PERFIL: ${directorTI.toUpperCase()}`);
   console.log('-'.repeat(50));

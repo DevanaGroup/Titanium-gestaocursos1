@@ -214,7 +214,7 @@ const AssistantSelection: React.FC<AssistantSelectionProps> = ({
   };
 
   // Verificar se o usuário é Diretor de TI
-  const isDirectorTI = userRole === 'Diretor de TI';
+  const isDirectorTI = userRole === 'Nível 1'; // Diretor de TI mapeia para Nível 1
 
   // Funções para campos dinâmicos
   const addDynamicField = (field: DynamicField) => {

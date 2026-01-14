@@ -615,7 +615,7 @@ export const ExpenseRequestManagement = () => {
                 </CardDescription>
               </div>
               
-              <Button onClick={() => setIsCreateDialogOpen(true)} className="bg-cerrado-green2 hover:bg-cerrado-green1 responsive-button">
+              <Button onClick={() => setIsCreateDialogOpen(true)} className="bg-red-500 hover:bg-red-600 text-white responsive-button">
                 <Plus className="mr-2 h-4 w-4" />
                 Nova Solicitação
               </Button>
@@ -839,7 +839,7 @@ export const ExpenseRequestManagement = () => {
               </p>
               {(!searchTerm && statusFilter === "all" && categoryFilter === "all" && urgencyFilter === "all") && (
                 <Button 
-                  className="mt-4"
+                  className="mt-4 bg-red-500 hover:bg-red-600 text-white"
                   onClick={() => setIsCreateDialogOpen(true)}
                 >
                   Criar primeira solicitação

@@ -215,3 +215,70 @@ export const canViewTask = (userLevel: HierarchyLevel, taskClientId?: string, us
   // A restrição específica será feita via hasPermission('view_all_tasks')
   return true;
 };
+
+// Função helper para normalizar qualquer string para HierarchyLevel
+// Se for um nível numérico válido, retorna ele. Caso contrário, retorna "Nível 5" como padrão
+export const normalizeHierarchyLevel = (level: string | HierarchyLevel | null | undefined): HierarchyLevel => {
+  if (!level) return "Nível 5";
+  
+  // Se já é um HierarchyLevel válido, retorna
+  if (level === "Nível 1" || level === "Nível 2" || level === "Nível 3" || level === "Nível 4" || level === "Nível 5") {
+    return level;
+  }
+  
+  // Mapear nomes de cargos para níveis (baseado em lógica de negócio)
+  // Presidente, Diretores -> Nível 1
+  if (level === "Presidente" || level === "Diretor" || level === "Diretor de TI" || 
+      level === "Diretor Financeiro" || level === "Diretor Comercial") {
+    return "Nível 1";
+  }
+  
+  // Gerente -> Nível 2
+  if (level === "Gerente") {
+    return "Nível 2";
+  }
+  
+  // Coordenador, Supervisor -> Nível 3
+  if (level === "Coordenador" || level === "Supervisor") {
+    return "Nível 3";
+  }
+  
+  // Líder Técnico, Engenheiro, Analista, Financeiro -> Nível 3
+  if (level === "Líder Técnico" || level === "Engenheiro" || level === "Analista" || level === "Financeiro") {
+    return "Nível 3";
+  }
+  
+  // Técnico/Assistente, Comercial -> Nível 4
+  if (level === "Técnico/Assistente" || level === "Comercial") {
+    return "Nível 4";
+  }
+  
+  // Estagiário/Auxiliar -> Nível 5
+  if (level === "Estagiário/Auxiliar") {
+    return "Nível 5";
+  }
+  
+  // Cliente Externo, Cliente -> Nível 5 (acesso limitado)
+  if (level === "Cliente Externo" || level === "Cliente") {
+    return "Nível 5";
+  }
+  
+  // Padrão: Nível 5
+  return "Nível 5";
+};
+
+// Funções helper para verificar cargos específicos (compatibilidade com código existente)
+export const isPresidente = (level: HierarchyLevel | string | null | undefined): boolean => {
+  const normalized = normalizeHierarchyLevel(level);
+  return normalized === "Nível 1";
+};
+
+export const isDiretorTI = (level: HierarchyLevel | string | null | undefined): boolean => {
+  const normalized = normalizeHierarchyLevel(level);
+  return normalized === "Nível 1";
+};
+
+export const isClienteExterno = (level: HierarchyLevel | string | null | undefined): boolean => {
+  if (!level) return false;
+  return level === "Cliente Externo" || level === "Cliente";
+};

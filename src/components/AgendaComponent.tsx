@@ -270,7 +270,7 @@ export const AgendaComponent: React.FC<AgendaComponentProps> = ({
               <CardTitle>Agenda - {format(currentDate, 'MMMM yyyy', { locale: ptBR })}</CardTitle>
               <CardDescription>Gerencie seus eventos e compromissos</CardDescription>
             </div>
-            <Button onClick={() => setIsCreateEventOpen(true)} className="bg-cerrado-green2 hover:bg-cerrado-green1">
+            <Button onClick={() => setIsCreateEventOpen(true)} className="bg-red-500 hover:bg-red-600 text-white">
               <Plus className="h-4 w-4 mr-2" />
               Novo Evento
             </Button>

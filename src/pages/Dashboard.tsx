@@ -38,7 +38,7 @@ import { useTabCloseLogout } from "@/hooks/useTabCloseLogout";
 import { getAuth, signOut } from "firebase/auth";
 import { useHeaderActions } from '@/contexts/HeaderActionsContext';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { doc, getDoc, updateDoc, collection, getDocs, query, where } from "firebase/firestore";
+import { doc, getDoc, updateDoc, setDoc, collection, getDocs, query, where, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { hasPermission } from "@/utils/hierarchyUtils";
 import { HierarchyLevel } from "@/types";
@@ -60,7 +60,7 @@ const Dashboard = () => {
   const location = useLocation();
   // REMOVIDO: const { rightAction } = useHeaderActions();
   const isMobile = useIsMobile();
-  const [activeTab, setActiveTab] = useState<"home" | "collaborators" | "clients" | "calendar" | "tasks" | "tasks-archived" | "chatbot" | "expense-requests" | "support-web" | "settings" | "presets" | "projetos" | "project-write" | "project-view" | "project-map" | "courses">("home");
+  const [activeTab, setActiveTab] = useState<"home" | "collaborators" | "clients" | "calendar" | "tasks" | "tasks-archived" | "chatbot" | "expense-requests" | "support-web" | "settings" | "presets" | "projetos" | "project-write" | "project-view" | "project-map" | "courses" | "lessons">("home");
   const [avatarUrl, setAvatarUrl] = useState("/placeholder.svg");
   const [isAvatarDialogOpen, setIsAvatarDialogOpen] = useState(false);
   const [userData, setUserData] = useState<UserData>({
@@ -315,13 +315,36 @@ const Dashboard = () => {
 
       // Continuar com a atualização do nome apenas se a atualização da imagem foi bem-sucedida
       if (updateSuccessful) {
-        // Atualizar apenas na coleção unificada
+        // Atualizar na coleção unificada
         const collaboratorDocRef = doc(db, 'collaborators_unified', currentUser.uid);
         await updateDoc(collaboratorDocRef, {
           firstName: editableFirstName,
           lastName: editableLastName,
           updatedAt: new Date()
         });
+
+        // Também atualizar na coleção users para sincronização
+        const userDocRef = doc(db, 'users', currentUser.uid);
+        const userDoc = await getDoc(userDocRef);
+        if (userDoc.exists()) {
+          await updateDoc(userDocRef, {
+            firstName: editableFirstName,
+            lastName: editableLastName,
+            displayName: editableFirstName,
+            updatedAt: serverTimestamp()
+          });
+        } else {
+          // Se não existir na coleção users, criar
+          await setDoc(userDocRef, {
+            uid: currentUser.uid,
+            firstName: editableFirstName,
+            lastName: editableLastName,
+            displayName: editableFirstName,
+            email: currentUser.email || "",
+            updatedAt: serverTimestamp(),
+            createdAt: serverTimestamp()
+          }, { merge: true });
+        }
 
         // Atualizar no Authentication
         await updateProfile(currentUser, {
@@ -363,6 +386,15 @@ const Dashboard = () => {
       setEditableLastName(names.slice(1).join(" ") || "");
     }
   }, [isAvatarDialogOpen, userData.name]);
+
+  // Handlers memoizados para evitar re-renders desnecessários do Dialog
+  const handleFirstNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditableFirstName(e.target.value);
+  }, []);
+
+  const handleLastNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditableLastName(e.target.value);
+  }, []);
 
   // Componente interno que usa o contexto do sidebar
   const DashboardContent = () => {
@@ -642,61 +674,6 @@ const Dashboard = () => {
             {activeTab === "project-map" && <ProjectMap />}
           </main>
         </div>
-        <Dialog open={isAvatarDialogOpen} onOpenChange={setIsAvatarDialogOpen}>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Configurações de Perfil</DialogTitle>
-              <DialogDescription>
-                Altere sua foto de perfil e outras configurações da conta.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="flex flex-col items-center gap-4 py-4">
-              <Avatar className="w-24 h-24">
-                <AvatarImage src={previewAvatar || userData.avatar} alt={userData.name} />
-                <AvatarFallback className="text-2xl">{getAvatarInitials(userData.name)}</AvatarFallback>
-              </Avatar>
-
-              <Label htmlFor="avatar-upload" className="cursor-pointer">
-                <div className="flex items-center gap-2 text-red-500 hover:text-red-600">
-                  <Camera size={18} />
-                  <span>Alterar foto</span>
-                </div>
-                <Input id="avatar-upload" type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
-              </Label>
-
-              <div className="w-full space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">Nome</Label>
-                  <Input
-                    id="firstName"
-                    value={editableFirstName}
-                    onChange={(e) => setEditableFirstName(e.target.value)}
-                    placeholder="Seu nome"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Sobrenome</Label>
-                  <Input
-                    id="lastName"
-                    value={editableLastName}
-                    onChange={(e) => setEditableLastName(e.target.value)}
-                    placeholder="Seu sobrenome"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button variant="ghost" onClick={() => setIsAvatarDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button type="submit" onClick={handleProfileUpdate}>
-                Salvar alterações
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
     );
   };
@@ -704,6 +681,61 @@ const Dashboard = () => {
   return (
     <SidebarProvider>
       <DashboardContent />
+      <Dialog open={isAvatarDialogOpen} onOpenChange={setIsAvatarDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Configurações de Perfil</DialogTitle>
+            <DialogDescription>
+              Altere sua foto de perfil e outras configurações da conta.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col items-center gap-4 py-4">
+            <Avatar className="w-24 h-24">
+              <AvatarImage src={previewAvatar || userData.avatar} alt={userData.name} />
+              <AvatarFallback className="text-2xl">{getAvatarInitials(userData.name)}</AvatarFallback>
+            </Avatar>
+
+            <Label htmlFor="avatar-upload" className="cursor-pointer">
+              <div className="flex items-center gap-2 text-red-500 hover:text-red-600">
+                <Camera size={18} />
+                <span>Alterar foto</span>
+              </div>
+              <Input id="avatar-upload" type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+            </Label>
+
+            <div className="w-full space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">Nome</Label>
+                <Input
+                  id="firstName"
+                  value={editableFirstName}
+                  onChange={handleFirstNameChange}
+                  placeholder="Seu nome"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Sobrenome</Label>
+                <Input
+                  id="lastName"
+                  value={editableLastName}
+                  onChange={handleLastNameChange}
+                  placeholder="Seu sobrenome"
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsAvatarDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" onClick={handleProfileUpdate}>
+              Salvar alterações
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </SidebarProvider>
   );
 };

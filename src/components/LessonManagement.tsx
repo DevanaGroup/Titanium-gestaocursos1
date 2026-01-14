@@ -259,15 +259,17 @@ export const LessonManagement = () => {
       const lessonsQuery = query(lessonsCollection, orderBy("createdAt", "desc"));
       const lessonsSnapshot = await getDocs(lessonsQuery);
       
-      const lessonsList = await Promise.all(lessonsSnapshot.docs.map(async (doc) => {
-        const data = doc.data();
+      const lessonsList = await Promise.all(lessonsSnapshot.docs.map(async (lessonDoc) => {
+        const data = lessonDoc.data();
         let courseTitle = "";
         
         if (data.courseId) {
           try {
-            const courseDoc = await getDoc(doc(db, "courses", data.courseId));
+            const courseDocRef = doc(db, "courses", data.courseId);
+            const courseDoc = await getDoc(courseDocRef);
             if (courseDoc.exists()) {
-              courseTitle = courseDoc.data().title || "";
+              const courseData = courseDoc.data();
+              courseTitle = (courseData?.title as string) || "";
             }
           } catch (error) {
             console.error("Erro ao buscar curso:", error);
@@ -275,7 +277,7 @@ export const LessonManagement = () => {
         }
         
         return {
-          id: doc.id,
+          id: lessonDoc.id,
           email: data.email || "",
           requesterName: data.requesterName || "",
           consultantName: data.consultantName || "",
@@ -423,7 +425,9 @@ export const LessonManagement = () => {
         requesterName: "",
         consultantName: "",
         courseResponsibleName: "",
-        courseResponsibleContact: "",
+        courseResponsiblePhone: "",
+        courseResponsiblePhoneCountryCode: "BR",
+        courseResponsibleEmail: "",
         lessonDate: "",
         lessonStartTime: "",
         locationName: "",
@@ -542,7 +546,9 @@ export const LessonManagement = () => {
         requesterName: "",
         consultantName: "",
         courseResponsibleName: "",
-        courseResponsibleContact: "",
+        courseResponsiblePhone: "",
+        courseResponsiblePhoneCountryCode: "BR",
+        courseResponsibleEmail: "",
         lessonDate: "",
         lessonStartTime: "",
         locationName: "",
