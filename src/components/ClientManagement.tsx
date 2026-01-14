@@ -1248,13 +1248,13 @@ export const ClientManagement = () => {
           </div>
         </CardHeader>
         
-        <CardContent>
+        <CardContent className="h-[600px] overflow-y-auto">
           {isLoading ? (
             <div className="text-center py-10">
               <p className="text-gray-500">Carregando clientes...</p>
             </div>
           ) : filteredClients.length > 0 ? (
-            <div className="table-container border rounded-md h-[550px] overflow-y-auto">
+            <div className="table-container border rounded-md">
               <Table>
                 <TableHeader>
                   <TableRow>

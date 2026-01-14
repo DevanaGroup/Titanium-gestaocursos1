@@ -1216,7 +1216,7 @@ export const CollaboratorManagement = () => {
       </Dialog>
 
       {/* Lista de Colaboradores */}
-      <div className="bg-white dark:bg-card rounded-lg shadow">
+      <div className="bg-white dark:bg-card rounded-lg shadow h-[600px] overflow-y-auto">
         <Table>
           <TableHeader>
             <TableRow>

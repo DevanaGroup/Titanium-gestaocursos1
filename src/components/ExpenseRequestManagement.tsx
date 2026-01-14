@@ -623,7 +623,7 @@ export const ExpenseRequestManagement = () => {
           </div>
         </CardHeader>
 
-        <CardContent className="responsive-card">
+        <CardContent className="responsive-card h-[600px] overflow-y-auto">
           {/* Filtros */}
           <div className="flex flex-col gap-4 mb-6">
             {/* Indicador de filtros ativos */}
@@ -726,7 +726,7 @@ export const ExpenseRequestManagement = () => {
 
           {/* Tabela de solicitações */}
           {filteredRequests.length > 0 ? (
-            <div className="adaptive-table-container border rounded-md h-[550px] overflow-y-auto">
+            <div className="adaptive-table-container border rounded-md">
               <Table className="responsive-table">
                 <TableHeader>
                   <TableRow>

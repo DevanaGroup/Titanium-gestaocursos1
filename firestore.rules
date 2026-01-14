@@ -210,6 +210,12 @@ service cloud.firestore {
       allow create, update, delete: if canManage();
     }
     
+    // Lessons collection - authenticated users can read, managers can create/update/delete
+    match /lessons/{lessonId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if canManage();
+    }
+    
     // Default deny all other collections
     match /{document=**} {
       allow read, write: if false;

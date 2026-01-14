@@ -6,7 +6,7 @@ import {
   Home, Users, User, Calendar, 
   KanbanSquare, FileText, Receipt,
   Settings, HelpCircle, GraduationCap,
-  FolderOpen, ChevronDown, X, Archive
+  FolderOpen, ChevronDown, X, Archive, BookOpen
 } from 'lucide-react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
@@ -43,6 +43,7 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
   const [userRole, setUserRole] = useState<HierarchyLevel>('Nível 5');
   const [isLoading, setIsLoading] = useState(true);
   const [tasksExpanded, setTasksExpanded] = useState(false);
+  const [coursesExpanded, setCoursesExpanded] = useState(false);
   const [internalMobileOpen, setInternalMobileOpen] = useState(false);
   const [clientId, setClientId] = useState<string | null>(null); // Para Cliente Externo e Cliente
   
@@ -58,6 +59,7 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
     'tasks-archived': '/tasks/archived',
     'expense-requests': '/expense-requests',
     'courses': '/courses',
+    'lessons': '/lessons',
     'collaborators': '/collaborators',
     'settings': '/settings',
     'support-web': '/support',
@@ -78,8 +80,11 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
   useEffect(() => {
     if (isMobile) {
       setTasksExpanded(true);
+      setCoursesExpanded(true);
     } else if (activeTab === 'tasks' || activeTab === 'tasks-archived' || location.pathname === '/tasks' || location.pathname === '/tasks/archived') {
       setTasksExpanded(true);
+    } else if (activeTab === 'courses' || activeTab === 'lessons' || location.pathname === '/courses' || location.pathname === '/lessons') {
+      setCoursesExpanded(true);
     }
   }, [activeTab, isMobile, location.pathname]);
 
@@ -122,7 +127,8 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
       icon: <GraduationCap className="h-4 w-4" />,
       label: "Cursos",
       requiresPermission: true,
-      permission: 'manage_department'
+      permission: 'manage_department',
+      hasSubmenu: true
     },
     {
       id: "collaborators",
@@ -186,7 +192,8 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
       icon: <GraduationCap className="h-4 w-4" />,
       label: "Cursos",
       requiresPermission: true,
-      permission: 'manage_department'
+      permission: 'manage_department',
+      hasSubmenu: true
     },
     {
       id: "clients",
@@ -336,6 +343,33 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
     });
   }, [menuItems, userRole]);
 
+  // Função helper para determinar se um item está ativo baseado na rota atual
+  const isItemActive = useCallback((itemId: string): boolean => {
+    const route = routeMap[itemId];
+    if (!route) return false;
+    
+    // Verificação direta da rota atual
+    if (location.pathname === route) {
+      return true;
+    }
+    
+    // Casos especiais
+    if (itemId === 'home' && location.pathname === '/dashboard') {
+      return true;
+    }
+    if (itemId === 'tasks' && (location.pathname === '/tasks' || location.pathname.startsWith('/tasks/'))) {
+      return true;
+    }
+    if (itemId === 'courses' && (location.pathname === '/courses' || location.pathname === '/lessons')) {
+      return true;
+    }
+    if (itemId === 'clients' && location.pathname.startsWith('/client')) {
+      return true;
+    }
+    
+    return false;
+  }, [location.pathname]);
+
   // Conteúdo da Sidebar
   const SidebarContent = () => (
     <>
@@ -373,10 +407,10 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
                     type="button"
                     className={`
                       w-full flex items-center justify-between px-2 
-                      py-1.5 text-sm font-medium rounded-md transition-colors duration-200 h-10 min-h-[44px] touch-manipulation pointer-events-auto
-                      ${tasksExpanded || activeTab === 'tasks' || activeTab === 'tasks-archived'
-                        ? 'bg-red-500 text-white shadow-sm' 
-                        : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                      py-1.5 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
+                      ${tasksExpanded || isItemActive('tasks') || location.pathname === '/tasks/archived'
+                        ? 'bg-red-500 text-white shadow-sm hover:bg-red-500 hover:text-white' 
+                        : 'text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200'
                       }
                     `}
                     onClick={(e) => {
@@ -407,15 +441,16 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
                         type="button"
                         className={`
                           w-full flex items-center justify-start px-2 
-                          py-1.5 text-sm font-medium rounded-md transition-colors duration-200 h-10 min-h-[44px] touch-manipulation pointer-events-auto
-                          ${(activeTab === 'tasks' || location.pathname === '/tasks') && activeTab !== 'tasks-archived'
-                            ? 'bg-red-500 text-white shadow-sm' 
-                            : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                          py-1.5 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
+                          ${location.pathname === '/tasks' && location.pathname !== '/tasks/archived'
+                            ? 'bg-red-500 text-white shadow-sm hover:bg-red-500 hover:text-white' 
+                            : 'text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200'
                           }
                         `}
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
+                          onTabChange('tasks');
                           navigate('/tasks', { state: { activeTab: 'tasks' } });
                           if (isMobile) {
                             setIsMobileOpen(false);
@@ -432,15 +467,16 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
                           type="button"
                           className={`
                             w-full flex items-center justify-start px-2 
-                            py-1.5 text-sm font-medium rounded-md transition-colors duration-200 h-10 min-h-[44px] touch-manipulation pointer-events-auto
-                            ${activeTab === 'tasks-archived' || location.pathname === '/tasks/archived'
-                              ? 'bg-red-500 text-white shadow-sm' 
-                              : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                            py-1.5 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
+                            ${location.pathname === '/tasks/archived'
+                              ? 'bg-red-500 text-white shadow-sm hover:bg-red-500 hover:text-white' 
+                              : 'text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200'
                             }
                           `}
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
+                            onTabChange('tasks-archived');
                             navigate('/tasks/archived', { state: { activeTab: 'tasks-archived' } });
                             if (isMobile) {
                               setIsMobileOpen(false);
@@ -454,20 +490,111 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
                     </div>
                   )}
                 </>
+              ) : item.id === 'courses' && (!isCollapsed || isMobile) ? (
+                <>
+                  <Button
+                    variant="ghost"
+                    type="button"
+                    className={`
+                      w-full flex items-center justify-between px-2 
+                      py-1.5 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
+                      ${coursesExpanded || isItemActive('courses') || location.pathname === '/lessons'
+                        ? 'bg-red-500 text-white shadow-sm hover:bg-red-500 hover:text-white' 
+                        : 'text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200'
+                      }
+                    `}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (!isMobile) {
+                        setCoursesExpanded(!coursesExpanded);
+                      }
+                    }}
+                  >
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0 mr-2">
+                        {item.icon}
+                      </div>
+                      <span className="text-sm font-medium truncate">
+                        {item.label}
+                      </span>
+                    </div>
+                    <ChevronDown 
+                      className={`h-4 w-4 transition-transform ${coursesExpanded ? 'rotate-180' : ''}`}
+                    />
+                  </Button>
+                  {coursesExpanded && (
+                    <div className="ml-6 space-y-1 mt-1">
+                      <Button
+                        variant="ghost"
+                        type="button"
+                        className={`
+                          w-full flex items-center justify-start px-2 
+                          py-1.5 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
+                          ${location.pathname === '/courses'
+                            ? 'bg-red-500 text-white shadow-sm hover:bg-red-500 hover:text-white' 
+                            : 'text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200'
+                          }
+                        `}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          onTabChange('courses');
+                          navigate('/courses', { state: { activeTab: 'courses' } });
+                          if (isMobile) {
+                            setIsMobileOpen(false);
+                          }
+                        }}
+                      >
+                        <GraduationCap className="h-3 w-3 mr-2" />
+                        <span className="text-sm">Cursos</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        type="button"
+                        className={`
+                          w-full flex items-center justify-start px-2 
+                          py-1.5 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
+                          ${location.pathname === '/lessons'
+                            ? 'bg-red-500 text-white shadow-sm hover:bg-red-500 hover:text-white' 
+                            : 'text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200'
+                          }
+                        `}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          onTabChange('lessons');
+                          navigate('/lessons', { state: { activeTab: 'lessons' } });
+                          if (isMobile) {
+                            setIsMobileOpen(false);
+                          }
+                        }}
+                      >
+                        <BookOpen className="h-3 w-3 mr-2" />
+                        <span className="text-sm">Aulas</span>
+                      </Button>
+                    </div>
+                  )}
+                </>
               ) : (
                 <Button
                   variant="ghost"
-                  className={`
-                    w-full flex items-center ${isCollapsed ? 'justify-center px-1' : 'justify-between px-2'} 
-                    py-1.5 text-sm font-medium rounded-md transition-colors duration-200 h-9
-                    ${activeTab === item.id
-                      ? 'bg-red-500 text-white shadow-sm' 
-                      : 'text-muted-foreground hover:text-foreground hover:bg-accent'
-                    }
-                  `}
+                    className={`
+                      w-full flex items-center ${isCollapsed ? 'justify-center px-1' : 'justify-between px-2'} 
+                      py-1.5 text-sm font-medium rounded-md h-9
+                      ${isItemActive(item.id)
+                        ? 'bg-red-500 text-white shadow-sm hover:bg-red-500 hover:text-white' 
+                        : 'text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200'
+                      }
+                    `}
                   onClick={() => {
+                    // Atualizar activeTab imediatamente para evitar delay visual
+                    onTabChange(item.id);
+                    
                     if (item.id === 'tasks') {
                       setTasksExpanded(!tasksExpanded);
+                    } else if (item.id === 'courses') {
+                      setCoursesExpanded(!coursesExpanded);
                     } else if (item.id === 'my-folder' && (userRole === 'Cliente Externo' || userRole === 'Cliente')) {
                       // Se for "Minha Pasta" e Cliente Externo, navegar para a rota do cliente
                       if (clientId) {
@@ -497,9 +624,6 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
                       // Só navegar se não estiver já na rota correta
                       if (location.pathname !== route) {
                         navigate(route, { state: { activeTab: item.id } });
-                      } else {
-                        // Se já está na rota, apenas atualizar o activeTab
-                        onTabChange(item.id);
                       }
                     }
                   }}
