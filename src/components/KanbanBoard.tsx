@@ -17,10 +17,9 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Switch } from '@/components/ui/switch';
 import { CalendarIcon, Clock, Circle, CheckCircle2, AlertCircle, PlusCircle, Edit, Trash2, MoreHorizontal, History, ArrowLeft, User, FileText, Archive, Search, X, Filter } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Collaborator, Client, HierarchyLevel } from '@/types';
+import { Collaborator, HierarchyLevel } from '@/types';
 import { hasPermission } from '@/utils/hierarchyUtils';
 import { getCollaborators } from '@/services/collaboratorService';
-import { getClients } from '@/services/clientService';
 import { getTasksByAssignee, getTasksByCollaboratorClientId } from '@/services/taskService';
 import { createTaskAuditLog, TASK_ACTIONS } from '@/services/taskAuditService';
 import { useNavigate } from 'react-router-dom';
@@ -59,7 +58,6 @@ interface Column {
 export default function KanbanBoard() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
   const [newTask, setNewTask] = useState<Omit<Task, 'id'>>({
     title: '',
     description: '',
@@ -73,7 +71,6 @@ export default function KanbanBoard() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingCollaborators, setIsLoadingCollaborators] = useState(true);
-  const [isLoadingClients, setIsLoadingClients] = useState(true);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [taskToEdit, setTaskToEdit] = useState<Task | null>(null);
@@ -634,27 +631,6 @@ export default function KanbanBoard() {
     fetchCollaborators();
   }, []);
 
-  useEffect(() => {
-    const fetchClients = async () => {
-      try {
-        console.log("🔍 Buscando clientes...");
-        setIsLoadingClients(true);
-        const clientsData = await getClients();
-        console.log("✅ Clientes carregados:", clientsData.length);
-        setClients(clientsData);
-      } catch (error) {
-        console.error("❌ Erro ao buscar clientes:", error);
-        toast.error("Não foi possível carregar os clientes");
-        setClients([]);
-      } finally {
-        setIsLoadingClients(false);
-      }
-    };
-
-    if (currentUser) {
-      fetchClients();
-    }
-  }, [currentUser]);
 
   const handleDragEnd = async (result: any) => {
     // Cliente Externo não pode arrastar tarefas
@@ -818,13 +794,6 @@ export default function KanbanBoard() {
       // Converter o status do Kanban para o status usado pelo sistema
       const systemStatus = mapKanbanStatusToSystemStatus(newTask.status);
       
-      // Buscar nome do cliente se clientId foi selecionado
-      let clientName = '';
-      if (newTask.clientId) {
-        const selectedClient = clients.find(c => c.id === newTask.clientId);
-        clientName = selectedClient ? selectedClient.name : '';
-      }
-      
       // Preparar dados para gravação
       const taskData = {
         title: newTask.title,
@@ -843,8 +812,8 @@ export default function KanbanBoard() {
             return currentUser.displayName || currentUser.email || 'Usuário';
           })() : 
           currentUser.displayName || currentUser.email || 'Usuário',
-        clientId: newTask.clientId || null,
-        clientName: clientName || null,
+        clientId: null,
+        clientName: null,
         createdBy: currentUser.uid,
         createdByName: currentUser.displayName || currentUser.email || 'Usuário',
         createdAt: new Date(),
@@ -868,7 +837,7 @@ export default function KanbanBoard() {
       
       // Criar log de auditoria
       try {
-        const auditMessage = `Nova tarefa criada: "${newTask.title}" - Status: ${systemStatus} - Prioridade: ${newTask.priority}${clientName ? ` - Cliente: ${clientName}` : ''}`;
+        const auditMessage = `Nova tarefa criada: "${newTask.title}" - Status: ${systemStatus} - Prioridade: ${newTask.priority}`;
         await createTaskAuditLog(
           TASK_ACTIONS.CREATE_TASK,
           auditMessage,
@@ -975,9 +944,6 @@ export default function KanbanBoard() {
         if (originalTask.assignee !== taskToEdit.assignee) {
           changes['Responsável'] = { from: originalTask.assignedToName || 'Não atribuído', to: taskToEdit.assignedToName || 'Não atribuído' };
         }
-        if (originalTask.clientId !== taskToEdit.clientId) {
-          changes['Cliente'] = { from: originalTask.clientName || 'Nenhum cliente', to: taskToEdit.clientName || 'Nenhum cliente' };
-        }
       }
 
       // Converter o status do Kanban para o status usado pelo sistema
@@ -996,15 +962,6 @@ export default function KanbanBoard() {
         }
       }
 
-      // Buscar nome do cliente se clientId foi alterado
-      let clientName = '';
-      if (taskToEdit.clientId) {
-        const selectedClient = clients.find(c => c.id === taskToEdit.clientId);
-        clientName = selectedClient ? selectedClient.name : '';
-        // Atualizar o taskToEdit com o nome do cliente para comparação de mudanças
-        taskToEdit.clientName = clientName;
-      }
-      
       // Preparar dados para atualização
       const taskData = {
         title: taskToEdit.title,
@@ -1015,7 +972,7 @@ export default function KanbanBoard() {
         assignedTo: taskToEdit.assignee,
         assignedToName: assignedToName,
         clientId: taskToEdit.clientId || null,
-        clientName: clientName || null,
+        clientName: taskToEdit.clientName || null,
         updatedAt: new Date()
       };
       
@@ -1228,7 +1185,7 @@ export default function KanbanBoard() {
       filtered = filtered.filter(log => log.action === historyStatusFilter);
     }
 
-    // Filtro por busca (cliente ou projeto)
+    // Filtro por busca
     if (historySearchTerm.trim()) {
       const searchLower = historySearchTerm.toLowerCase().trim();
       filtered = filtered.filter(log => {
@@ -1453,11 +1410,11 @@ export default function KanbanBoard() {
 
               {/* Filtros */}
               <div className="mb-6 flex items-center justify-end gap-2">
-                  {/* Busca por cliente/projeto */}
+                  {/* Busca */}
                   <div className="relative max-w-xl w-[400px]">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                     <Input
-                      placeholder="Buscar por cliente ou projeto..."
+                      placeholder="Buscar por tarefa, detalhes ou responsável..."
                       value={historySearchTerm}
                       onChange={(e) => setHistorySearchTerm(e.target.value)}
                       className="pl-10 pr-4 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none hover:bg-accent/30 rounded-full transition-colors"
@@ -1843,31 +1800,6 @@ export default function KanbanBoard() {
               />
             </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="client">Cliente (Opcional)</Label>
-              <Select 
-                value={newTask.clientId || 'none'} 
-                onValueChange={(value) => handleSelectChange("clientId", value === "none" ? "" : value)}
-              >
-                <SelectTrigger id="client">
-                  <SelectValue placeholder="Selecione um cliente" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Nenhum cliente</SelectItem>
-                  {isLoadingClients ? (
-                    <SelectItem value="loading" disabled>Carregando clientes...</SelectItem>
-                  ) : clients.length > 0 ? (
-                    clients.map(client => (
-                      <SelectItem key={client.id} value={client.id}>
-                        {client.name} - {client.project}
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem value="no-clients" disabled>Nenhum cliente disponível</SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
             
             <div className="grid gap-2">
               <Label htmlFor="status">Status</Label>
@@ -2011,31 +1943,6 @@ export default function KanbanBoard() {
                 />
               </div>
 
-              <div className="grid gap-2">
-                <Label htmlFor="edit-client">Cliente (Opcional)</Label>
-                <Select 
-                  value={taskToEdit.clientId || 'none'} 
-                  onValueChange={(value) => handleEditSelectChange("clientId", value === "none" ? "" : value)}
-                >
-                  <SelectTrigger id="edit-client">
-                    <SelectValue placeholder="Selecione um cliente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Nenhum cliente</SelectItem>
-                    {isLoadingClients ? (
-                      <SelectItem value="loading" disabled>Carregando clientes...</SelectItem>
-                    ) : clients.length > 0 ? (
-                      clients.map(client => (
-                        <SelectItem key={client.id} value={client.id}>
-                          {client.name} - {client.project}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem value="no-clients" disabled>Nenhum cliente disponível</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
               
               <div className="grid gap-2">
                 <Label htmlFor="edit-status">Status</Label>

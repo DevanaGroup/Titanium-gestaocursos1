@@ -20,6 +20,7 @@ import { CollaboratorManagement } from "@/components/CollaboratorManagement";
 import { ClientManagement } from "@/components/ClientManagement";
 import { CourseManagement } from "@/components/CourseManagement";
 import { LessonManagement } from "@/components/LessonManagement";
+import { TeacherManagement } from "@/components/TeacherManagement";
 import { SidebarProvider, useSidebar } from "@/contexts/SidebarContext";
 import CustomSidebar from "@/components/CustomSidebar";
 import KanbanBoard from "@/components/KanbanBoard";
@@ -60,7 +61,7 @@ const Dashboard = () => {
   const location = useLocation();
   // REMOVIDO: const { rightAction } = useHeaderActions();
   const isMobile = useIsMobile();
-  const [activeTab, setActiveTab] = useState<"home" | "collaborators" | "clients" | "calendar" | "tasks" | "tasks-archived" | "chatbot" | "expense-requests" | "support-web" | "settings" | "presets" | "projetos" | "project-write" | "project-view" | "project-map" | "courses" | "lessons">("home");
+  const [activeTab, setActiveTab] = useState<"home" | "collaborators" | "clients" | "calendar" | "tasks" | "tasks-archived" | "chatbot" | "expense-requests" | "support-web" | "settings" | "presets" | "projetos" | "project-write" | "project-view" | "project-map" | "courses" | "lessons" | "teachers">("home");
   const [avatarUrl, setAvatarUrl] = useState("/placeholder.svg");
   const [isAvatarDialogOpen, setIsAvatarDialogOpen] = useState(false);
   const [userData, setUserData] = useState<UserData>({
@@ -107,6 +108,12 @@ const Dashboard = () => {
       setActiveTab('tasks-archived');
     } else if (location.pathname === '/tasks') {
       setActiveTab('tasks');
+    } else if (location.pathname === '/teachers') {
+      setActiveTab('teachers');
+    } else if (location.pathname === '/lessons') {
+      setActiveTab('lessons');
+    } else if (location.pathname === '/courses') {
+      setActiveTab('courses');
     }
   }, [location]);
 
@@ -642,6 +649,23 @@ const Dashboard = () => {
                     <h2 className="text-2xl font-semibold text-yellow-800 mb-4">Acesso Restrito</h2>
                     <p className="text-yellow-700 mb-6">
                       O gerenciamento de aulas está disponível apenas para Nível 1, 2 e 3.
+                    </p>
+                    <p className="text-sm text-yellow-600">
+                      Entre em contato com seu superior hierárquico para solicitar acesso.
+                    </p>
+                  </div>
+                </div>
+              )
+            )}
+            {activeTab === "teachers" && (
+              hasPermission(userData.role as HierarchyLevel, 'manage_department') ? (
+                <TeacherManagement />
+              ) : (
+                <div className="h-full flex items-center justify-center flex-col">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-8 text-center max-w-md">
+                    <h2 className="text-2xl font-semibold text-yellow-800 mb-4">Acesso Restrito</h2>
+                    <p className="text-yellow-700 mb-6">
+                      O gerenciamento de professores está disponível apenas para Nível 1, 2 e 3.
                     </p>
                     <p className="text-sm text-yellow-600">
                       Entre em contato com seu superior hierárquico para solicitar acesso.

@@ -6,7 +6,8 @@ export const HIERARCHY_LEVELS: HierarchyLevel[] = [
   "Nível 2",
   "Nível 3",
   "Nível 4",
-  "Nível 5"
+  "Nível 5",
+  "Nível 6"
 ];
 
 // Extrair número do nível (ex: "Nível 1" -> 1)
@@ -113,7 +114,8 @@ export const getHierarchyDescription = (level: HierarchyLevel): string => {
     2: "📊 Alto nível de permissões - Gestão e aprovações",
     3: "⚙️ Permissões intermediárias - Visualização e operações",
     4: "📝 Permissões básicas - Operações limitadas",
-    5: "👤 Permissões mínimas - Acesso restrito"
+    5: "👤 Permissões mínimas - Acesso restrito",
+    6: "👨‍🏫 Professor - Acesso para gerenciar cursos e aulas"
   };
   
   return descriptions[levelNum] || level;
@@ -128,7 +130,8 @@ export const getHierarchyColor = (level: HierarchyLevel): string => {
     2: "bg-blue-500 text-white",
     3: "bg-green-500 text-white",
     4: "bg-yellow-500 text-black",
-    5: "bg-gray-400 text-white"
+    5: "bg-gray-400 text-white",
+    6: "bg-indigo-500 text-white"
   };
   
   return colors[levelNum] || "bg-gray-400 text-white";
@@ -222,7 +225,7 @@ export const normalizeHierarchyLevel = (level: string | HierarchyLevel | null | 
   if (!level) return "Nível 5";
   
   // Se já é um HierarchyLevel válido, retorna
-  if (level === "Nível 1" || level === "Nível 2" || level === "Nível 3" || level === "Nível 4" || level === "Nível 5") {
+  if (level === "Nível 1" || level === "Nível 2" || level === "Nível 3" || level === "Nível 4" || level === "Nível 5" || level === "Nível 6") {
     return level;
   }
   

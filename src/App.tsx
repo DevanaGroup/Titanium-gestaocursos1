@@ -126,6 +126,11 @@ const App = () => (
                   <Dashboard />
                 </ProtectedRoute>
               } />
+              <Route path="/teachers" element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              } />
               <Route path="/settings" element={
                 <ProtectedRoute>
                   <Dashboard />

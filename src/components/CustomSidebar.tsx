@@ -3,10 +3,10 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useSidebar } from '@/contexts/SidebarContext';
 import Logo from '@/components/Logo';
 import { 
-  Home, Users, User, Calendar, 
+  Home, Users, Calendar, 
   KanbanSquare, FileText, Receipt,
   Settings, HelpCircle, GraduationCap,
-  FolderOpen, ChevronDown, X, Archive, BookOpen
+  FolderOpen, ChevronDown, X, Archive, BookOpen, UserCircle
 } from 'lucide-react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
@@ -54,13 +54,13 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
   // Mapeamento de IDs para rotas
   const routeMap: { [key: string]: string } = {
     'home': '/dashboard',
-    'clients': '/clients',
     'calendar': '/calendar',
     'tasks': '/tasks',
     'tasks-archived': '/tasks/archived',
     'expense-requests': '/expense-requests',
     'courses': '/courses',
     'lessons': '/lessons',
+    'teachers': '/teachers',
     'collaborators': '/collaborators',
     'settings': '/settings',
     'support-web': '/support',
@@ -90,18 +90,12 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
   }, [activeTab, isMobile, location.pathname]);
 
   // Menu padrão para usuários não-comerciais (Nível 2-5)
-  // Ordem: Início, Clientes, Agenda, Tarefas, Solicitações, Colaboradores (se permitido), Suporte
+  // Ordem: Início, Agenda, Tarefas, Solicitações, Colaboradores (se permitido), Suporte
   const defaultMenuItems = [
     {
       id: "home",
       icon: <Home className="h-4 w-4" />,
       label: "Início",
-      requiresPermission: false
-    },
-    {
-      id: "clients",
-      icon: <User className="h-4 w-4" />,
-      label: "Clientes",
       requiresPermission: false
     },
     {
@@ -173,7 +167,7 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
   ];
 
   // Menu completo para Nível 1 (acesso total a todos os módulos)
-  // Ordem: Início, Colaboradores, Clientes, Agenda, Tarefas, Solicitações, Configurações, Suporte
+  // Ordem: Início, Colaboradores, Agenda, Tarefas, Solicitações, Configurações, Suporte
   const directorTiMenuItems = [
     {
       id: "home",
@@ -195,12 +189,6 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
       requiresPermission: true,
       permission: 'manage_department',
       hasSubmenu: true
-    },
-    {
-      id: "clients",
-      icon: <User className="h-4 w-4" />,
-      label: "Clientes",
-      requiresPermission: false
     },
     {
       id: "calendar",
@@ -367,10 +355,10 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
     if (itemId === 'tasks' && (location.pathname === '/tasks' || location.pathname.startsWith('/tasks/'))) {
       return true;
     }
-    if (itemId === 'courses' && (location.pathname === '/courses' || location.pathname === '/lessons')) {
+    if (itemId === 'courses' && (location.pathname === '/courses' || location.pathname === '/lessons' || location.pathname === '/teachers')) {
       return true;
     }
-    if (itemId === 'clients' && location.pathname.startsWith('/client')) {
+    if (itemId === 'teachers' && location.pathname === '/teachers') {
       return true;
     }
     
@@ -579,6 +567,30 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
                       >
                         <BookOpen className="h-3 w-3 mr-2" />
                         <span className="text-sm">Aulas</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        type="button"
+                        className={`
+                          w-full flex items-center justify-start px-2 
+                          py-1.5 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
+                          ${location.pathname === '/teachers'
+                            ? 'bg-red-500 text-white shadow-sm hover:bg-red-500 hover:text-white' 
+                            : 'text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200'
+                          }
+                        `}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          onTabChange('teachers');
+                          navigate('/teachers', { state: { activeTab: 'teachers' } });
+                          if (isMobile) {
+                            setIsMobileOpen(false);
+                          }
+                        }}
+                      >
+                        <UserCircle className="h-3 w-3 mr-2" />
+                        <span className="text-sm">Professores</span>
                       </Button>
                     </div>
                   )}
