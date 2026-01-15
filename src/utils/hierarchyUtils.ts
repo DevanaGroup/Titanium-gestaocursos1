@@ -32,13 +32,13 @@ export const hasHierarchicalPermission = (userLevel: HierarchyLevel, targetLevel
 
 // Verificar se um usuário pode criar/gerenciar outro nível
 export const canManageLevel = (userLevel: HierarchyLevel, targetLevel: HierarchyLevel): boolean => {
-  // Ninguém pode gerenciar usuários do mesmo nível
-  if (userLevel === targetLevel) {
-    return false;
+  // Nível 1 pode criar qualquer nível, incluindo outro Nível 1
+  if (userLevel === "Nível 1") {
+    return true;
   }
   
-  // Nível 1 não pode criar outros Nível 1
-  if (userLevel === "Nível 1" && targetLevel === "Nível 1") {
+  // Ninguém pode gerenciar usuários do mesmo nível (exceto Nível 1)
+  if (userLevel === targetLevel) {
     return false;
   }
   
@@ -96,9 +96,9 @@ export const hasPermission = (userLevel: HierarchyLevel, permission: string): bo
 export const getManagedLevels = (userLevel: HierarchyLevel): HierarchyLevel[] => {
   const levelNum = getLevelNumber(userLevel);
   
-  // Nível 1 não pode criar outros Nível 1
+  // Nível 1 pode criar qualquer nível, incluindo outro Nível 1
   if (levelNum === 1) {
-    return HIERARCHY_LEVELS.filter(level => level !== "Nível 1");
+    return HIERARCHY_LEVELS;
   }
   
   // Outros níveis podem gerenciar níveis inferiores

@@ -26,7 +26,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { db, auth } from "@/config/firebase";
+import { db, auth, FUNCTIONS_BASE_URL } from "@/config/firebase";
 import { collection, getDocs, deleteDoc, doc, serverTimestamp, setDoc, updateDoc, query, where } from "firebase/firestore";
 import { HierarchyLevel } from "@/types";
 import { getDoc } from "firebase/firestore";
@@ -459,36 +459,99 @@ export const TeacherManagement = () => {
       // Separar nome completo
       const nameParts = newTeacher.fullName.trim().split(' ');
       const firstName = nameParts[0] || '';
-      const lastName = nameParts.slice(1).join(' ') || '';
+      // Se não houver sobrenome, usar o primeiro nome como sobrenome também
+      const lastName = nameParts.slice(1).join(' ') || firstName || 'Professor';
+
+      // Validar campos antes de enviar
+      if (!firstName || !lastName) {
+        toast.error("Nome completo inválido. Por favor, verifique o nome do professor.");
+        setIsLoading(false);
+        disableAdministrativeMode();
+        return;
+      }
 
       // 📡 Chamar função serverless para criar usuário no Auth
       console.log('🚀 Chamando função serverless para criar usuário...');
+      console.log('📧 Email:', newTeacher.email);
+      console.log('👤 Nome:', firstName, lastName);
+      console.log('📊 Nível: Nível 6');
+      console.log('🔑 Password presente:', !!newTeacher.password);
+      
+      const requestBody = {
+        email: newTeacher.email,
+        password: newTeacher.password,
+        firstName: firstName,
+        lastName: lastName,
+        hierarchyLevel: "Nível 6"
+      };
+      
+      console.log('📦 Body da requisição:', {
+        email: requestBody.email,
+        hasPassword: !!requestBody.password,
+        firstName: requestBody.firstName,
+        lastName: requestBody.lastName,
+        hierarchyLevel: requestBody.hierarchyLevel
+      });
+      
       toast.info("Criando usuário no sistema de autenticação...");
       
       const token = await currentUser.getIdToken();
+      console.log('🔑 Token obtido, fazendo requisição...');
       
-      const createUserResponse = await fetch('https://us-central1-cerrado-engenharia.cloudfunctions.net/createUserAuth', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          email: newTeacher.email,
-          password: newTeacher.password,
-          firstName: firstName,
-          lastName: lastName,
-          hierarchyLevel: "Nível 6"
-        })
-      });
-
-      if (!createUserResponse.ok) {
-        const errorData = await createUserResponse.json();
-        throw new Error(errorData.error || 'Erro ao criar usuário no Auth');
+      let createUserResponse;
+      try {
+        createUserResponse = await fetch(`${FUNCTIONS_BASE_URL}/createUserAuth`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(requestBody)
+        });
+        
+        console.log('📡 Resposta recebida:', {
+          status: createUserResponse.status,
+          statusText: createUserResponse.statusText,
+          ok: createUserResponse.ok
+        });
+      } catch (fetchError: any) {
+        console.error('❌ Erro na requisição fetch:', fetchError);
+        throw new Error(`Erro de conexão: ${fetchError.message || 'Não foi possível conectar ao servidor'}`);
       }
 
-      const authResult = await createUserResponse.json();
+      if (!createUserResponse.ok) {
+        let errorMessage = `Erro ${createUserResponse.status}: ${createUserResponse.statusText}`;
+        try {
+          const errorData = await createUserResponse.json();
+          errorMessage = errorData.error || errorMessage;
+          console.error('❌ Erro da função serverless:', errorData);
+        } catch (parseError) {
+          // Se não conseguir parsear JSON, tentar ler como texto
+          try {
+            const errorText = await createUserResponse.text();
+            console.error('❌ Erro da função serverless (texto):', errorText);
+            errorMessage = errorText || errorMessage;
+          } catch (textError) {
+            console.error('❌ Não foi possível ler a resposta de erro');
+          }
+        }
+        throw new Error(errorMessage);
+      }
+
+      let authResult;
+      try {
+        authResult = await createUserResponse.json();
+        console.log('✅ Resposta JSON recebida:', authResult);
+      } catch (parseError) {
+        console.error('❌ Erro ao parsear resposta JSON:', parseError);
+        throw new Error('Resposta inválida do servidor');
+      }
+      
       const newUserId = authResult.uid;
+      if (!newUserId) {
+        console.error('❌ UID não encontrado na resposta:', authResult);
+        throw new Error('UID do usuário não foi retornado pelo servidor');
+      }
       
       console.log('✅ Usuário criado com sucesso no Auth:', newUserId);
       toast.success("Usuário criado no sistema de autenticação!");
@@ -577,7 +640,8 @@ export const TeacherManagement = () => {
 
       const nameParts = (selectedTeacher.fullName || selectedTeacher.displayName || '').trim().split(' ');
       const firstName = nameParts[0] || '';
-      const lastName = nameParts.slice(1).join(' ') || '';
+      // Se não houver sobrenome, usar o primeiro nome como sobrenome também
+      const lastName = nameParts.slice(1).join(' ') || firstName || 'Professor';
 
       await updateDoc(doc(db, "users", selectedTeacher.uid), {
         firstName: firstName,
@@ -1081,15 +1145,20 @@ export const TeacherManagement = () => {
                               {getInitials(teacher.fullName || teacher.displayName || '')}
                             </AvatarFallback>
                           </Avatar>
-                          <div>
-                            <div className="font-medium">{teacher.fullName || teacher.displayName}</div>
+                          <div className="min-w-0 flex-1">
+                            <div 
+                              className="font-medium truncate max-w-[20ch]" 
+                              title={teacher.fullName || teacher.displayName || ''}
+                            >
+                              {teacher.fullName || teacher.displayName}
+                            </div>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell className="text-center">{teacher.email}</TableCell>
                       <TableCell className="text-center">{teacher.cpf ? formatCPF(teacher.cpf) : "-"}</TableCell>
                       <TableCell className="text-center">{teacher.cro || "-"}</TableCell>
-                      <TableCell className="text-center">{teacher.phoneNumber || "-"}</TableCell>
+                      <TableCell className="text-center whitespace-nowrap">{teacher.phoneNumber || "-"}</TableCell>
                       <TableCell className="text-center">
                         <div className="flex justify-center gap-2">
                           <Button

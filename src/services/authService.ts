@@ -50,6 +50,12 @@ const findEmailByUsername = async (username: string): Promise<string | null> => 
 
 export const signIn = async (usernameOrEmail: string, password: string) => {
   try {
+    // Se já houver um usuário logado, fazer logout primeiro para evitar conflitos
+    if (auth.currentUser) {
+      console.log('🔓 Usuário já logado detectado, fazendo logout...');
+      await firebaseSignOut(auth);
+    }
+    
     let email = usernameOrEmail;
     
     // Se não contém "@", tratar como username e buscar o email correspondente
@@ -61,8 +67,13 @@ export const signIn = async (usernameOrEmail: string, password: string) => {
       email = foundEmail;
     }
     
+    // Verificar se o email é do domínio correto (opcional - pode remover se não for necessário)
+    console.log('🔐 Tentando fazer login com:', email);
+    
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
+    
+    console.log('✅ Login realizado com sucesso:', user.email);
     
     // Get additional user data from Firestore - buscar na coleção users
     const userDocRef = doc(db, 'users', user.uid);
@@ -95,9 +106,55 @@ export const signIn = async (usernameOrEmail: string, password: string) => {
 export const signOut = async () => {
   try {
     await firebaseSignOut(auth);
+    // Limpar também o localStorage relacionado ao Firebase
+    if (typeof window !== 'undefined') {
+      // Limpar chaves do Firebase Auth do localStorage
+      const keys = Object.keys(localStorage);
+      keys.forEach(key => {
+        if (key.startsWith('firebase:authUser:') || key.startsWith('firebase:host:')) {
+          localStorage.removeItem(key);
+        }
+      });
+      console.log('🧹 Sessão do Firebase limpa do localStorage');
+    }
     return true;
   } catch (error) {
     console.error('Error signing out:', error);
+    throw error;
+  }
+};
+
+// Função para limpar completamente a sessão do Firebase
+export const clearAuthSession = async () => {
+  try {
+    // Fazer logout do Firebase
+    if (auth.currentUser) {
+      await firebaseSignOut(auth);
+    }
+    
+    // Limpar localStorage
+    if (typeof window !== 'undefined') {
+      const keys = Object.keys(localStorage);
+      keys.forEach(key => {
+        if (key.includes('firebase') || key.includes('auth')) {
+          localStorage.removeItem(key);
+        }
+      });
+      
+      // Limpar também sessionStorage
+      const sessionKeys = Object.keys(sessionStorage);
+      sessionKeys.forEach(key => {
+        if (key.includes('firebase') || key.includes('auth')) {
+          sessionStorage.removeItem(key);
+        }
+      });
+      
+      console.log('🧹 Sessão do Firebase completamente limpa');
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error clearing auth session:', error);
     throw error;
   }
 };

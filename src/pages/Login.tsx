@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
-import { signIn } from "@/services/authService";
+import { signIn, clearAuthSession } from "@/services/authService";
+import { auth } from "@/config/firebase";
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -18,6 +19,30 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
+
+  // Limpar sessão antiga ao carregar a página de login
+  useEffect(() => {
+    const clearOldSession = async () => {
+      try {
+        // Verificar se há um usuário logado
+        if (auth.currentUser) {
+          const currentEmail = auth.currentUser.email;
+          console.log('🔍 Usuário logado detectado:', currentEmail);
+          
+          // Se o email não for do domínio correto ou for uma conta antiga, limpar
+          if (currentEmail && !currentEmail.includes('@devana.com.br') && !currentEmail.includes('@titanium')) {
+            console.log('🧹 Limpando sessão de conta antiga:', currentEmail);
+            await clearAuthSession();
+            toast.info('Sessão anterior foi limpa. Por favor, faça login novamente.');
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao verificar sessão:', error);
+      }
+    };
+    
+    clearOldSession();
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;

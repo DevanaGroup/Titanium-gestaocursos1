@@ -49,4 +49,7 @@ if (typeof window !== 'undefined') {
   });
 }
 
+// URL base para Cloud Functions
+export const FUNCTIONS_BASE_URL = `https://us-central1-${firebaseConfig.projectId}.cloudfunctions.net`;
+
 export default app;

@@ -690,29 +690,29 @@ export const LessonManagement = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Solicitante</TableHead>
-                  <TableHead>Consultor</TableHead>
-                  <TableHead>Curso</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Local</TableHead>
-                  <TableHead>Duração</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead className="text-left">Solicitante</TableHead>
+                  <TableHead className="text-left">Consultor</TableHead>
+                  <TableHead className="text-left">Curso</TableHead>
+                  <TableHead className="text-left">Data</TableHead>
+                  <TableHead className="text-left">Local</TableHead>
+                  <TableHead className="text-left">Duração</TableHead>
+                  <TableHead className="text-left">Status</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredLessons.map((lesson) => (
                   <TableRow key={lesson.id}>
-                    <TableCell className="font-medium">{lesson.requesterName || "-"}</TableCell>
-                    <TableCell>{lesson.consultantName || "-"}</TableCell>
-                    <TableCell>{lesson.courseTitle || "-"}</TableCell>
-                    <TableCell>
+                    <TableCell className="text-left font-medium">{lesson.requesterName || "-"}</TableCell>
+                    <TableCell className="text-left">{lesson.consultantName || "-"}</TableCell>
+                    <TableCell className="text-left">{lesson.courseTitle || "-"}</TableCell>
+                    <TableCell className="text-left whitespace-nowrap">
                       {lesson.lessonDate ? new Date(lesson.lessonDate).toLocaleDateString('pt-BR') : "-"}
                       {lesson.lessonStartTime && ` ${lesson.lessonStartTime}`}
                     </TableCell>
-                    <TableCell className="max-w-[200px] truncate">{lesson.locationName || "-"}</TableCell>
-                    <TableCell>{lesson.lessonDuration || lesson.customDuration || "-"}</TableCell>
-                    <TableCell>{getStatusBadge(lesson.status)}</TableCell>
+                    <TableCell className="text-left max-w-[200px] truncate">{lesson.locationName || "-"}</TableCell>
+                    <TableCell className="text-left whitespace-nowrap">{lesson.lessonDuration || lesson.customDuration || "-"}</TableCell>
+                    <TableCell className="text-left">{getStatusBadge(lesson.status)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button

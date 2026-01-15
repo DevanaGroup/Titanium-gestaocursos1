@@ -37,7 +37,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { db } from "@/config/firebase";
+import { db, FUNCTIONS_BASE_URL } from "@/config/firebase";
 import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc, query, where, serverTimestamp, FieldValue, setDoc } from "firebase/firestore";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useNavigate } from "react-router-dom";
@@ -456,7 +456,7 @@ export const ClientManagement = () => {
         // 1. Criar usuário no Firebase Auth via função cloud
         const token = await currentUser.getIdToken();
         
-        const createUserResponse = await fetch('https://us-central1-cerrado-engenharia.cloudfunctions.net/createUserAuth', {
+        const createUserResponse = await fetch('https://us-central1-titanium-cursos.cloudfunctions.net/createUserAuth', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -666,7 +666,7 @@ export const ClientManagement = () => {
           // 1. Criar usuário no Firebase Auth via função cloud
           const token = await currentUser.getIdToken();
           
-          const createUserResponse = await fetch('https://us-central1-cerrado-engenharia.cloudfunctions.net/createUserAuth', {
+          const createUserResponse = await fetch('https://us-central1-titanium-cursos.cloudfunctions.net/createUserAuth', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

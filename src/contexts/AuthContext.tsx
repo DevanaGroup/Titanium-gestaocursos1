@@ -34,6 +34,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         try {
+          // Verificar se o email é válido para este projeto
+          const userEmail = user.email || '';
+          console.log('🔍 Verificando usuário logado:', userEmail);
+          
+          // Se o email contém "belgos" ou outros domínios não autorizados, fazer logout
+          if (userEmail.includes('belgos') || (userEmail && !userEmail.includes('@devana.com.br') && !userEmail.includes('@titanium') && !userEmail.includes('@cerrado'))) {
+            console.warn('⚠️ Conta não autorizada detectada:', userEmail);
+            console.log('🔓 Fazendo logout automático...');
+            await auth.signOut();
+            setUserData(null);
+            setLoading(false);
+            return;
+          }
+          
           // Buscar dados do usuário na coleção users
           const userDoc = await getDoc(doc(db, 'users', user.uid));
           

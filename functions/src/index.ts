@@ -983,27 +983,42 @@ async function getEventCollaboratorsByIds(ids: string[]): Promise<any[]> {
  * Função para criar usuário no Firebase Auth (v1)
  * Usado pelos administradores para criar novos colaboradores
  */
-export const createUserAuth = functions.https.onRequest(async (request, response) => {
-  // Configurar CORS
+// Helper function para aplicar headers CORS
+const setCorsHeaders = (response: any) => {
   response.set('Access-Control-Allow-Origin', '*');
-  response.set('Access-Control-Allow-Methods', 'POST');
-  response.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  response.set('Access-Control-Allow-Methods', 'POST, OPTIONS, GET');
+  response.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  response.set('Access-Control-Max-Age', '3600');
+};
 
+export const createUserAuth = functions.https.onRequest(async (request, response) => {
+  // Aplicar headers CORS imediatamente
+  setCorsHeaders(response);
+
+  // Responder imediatamente para requisições OPTIONS (preflight)
   if (request.method === 'OPTIONS') {
     response.status(204).send('');
     return;
   }
 
-  // Verifica se é uma requisição POST
-  if (request.method !== 'POST') {
-    response.status(405).json({ error: "Método não permitido. Use POST." });
-    return;
-  }
+    // Verifica se é uma requisição POST
+    if (request.method !== 'POST') {
+      setCorsHeaders(response);
+      response.status(405).json({ error: "Método não permitido. Use POST." });
+      return;
+    }
 
   try {
+    functions.logger.info("Iniciando criação de usuário", {
+      method: request.method,
+      hasBody: !!request.body
+    });
+    
     // Verifica o token de autorização
     const authHeader = request.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      functions.logger.warn("Token de autorização não fornecido");
+      setCorsHeaders(response);
       response.status(401).json({ error: "Token de autorização requerido" });
       return;
     }
@@ -1011,7 +1026,19 @@ export const createUserAuth = functions.https.onRequest(async (request, response
     const idToken = authHeader.split('Bearer ')[1];
     
     // Verifica o token do usuário
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    let decodedToken;
+    try {
+      decodedToken = await admin.auth().verifyIdToken(idToken);
+      functions.logger.info("Token verificado com sucesso", { uid: decodedToken.uid });
+    } catch (tokenError: any) {
+      functions.logger.error("Erro ao verificar token:", tokenError);
+      setCorsHeaders(response);
+      response.status(401).json({ 
+        error: "Token inválido ou expirado",
+        code: tokenError.code 
+      });
+      return;
+    }
     
     // ✅ Verifica se o usuário tem permissão de administrador - COLEÇÃO USERS
     const adminUserDoc = await admin.firestore()
@@ -1020,6 +1047,7 @@ export const createUserAuth = functions.https.onRequest(async (request, response
       .get();
     
     if (!adminUserDoc.exists) {
+      setCorsHeaders(response);
       response.status(404).json({ error: "Usuário administrador não encontrado na coleção users" });
       return;
     }
@@ -1027,9 +1055,16 @@ export const createUserAuth = functions.https.onRequest(async (request, response
     const adminData = adminUserDoc.data();
     const adminHierarchy = adminData?.hierarchyLevel;
     
+    functions.logger.info("Verificando permissões do administrador", {
+      uid: decodedToken.uid,
+      hierarchyLevel: adminHierarchy
+    });
+    
     // Verifica se tem permissão baseado no nível numérico (Nível 1-3 podem criar usuários)
     if (!adminHierarchy) {
-      response.status(403).json({ error: "Sem permissão para criar usuários" });
+      functions.logger.warn("Usuário sem nível hierárquico definido");
+      setCorsHeaders(response);
+      response.status(403).json({ error: "Sem permissão para criar usuários - nível hierárquico não definido" });
       return;
     }
     
@@ -1037,31 +1072,122 @@ export const createUserAuth = functions.https.onRequest(async (request, response
     const levelMatch = adminHierarchy.match(/\d+/);
     const levelNum = levelMatch ? parseInt(levelMatch[0], 10) : 5;
     
+    functions.logger.info("Nível hierárquico do administrador", {
+      hierarchyLevel: adminHierarchy,
+      levelNum: levelNum
+    });
+    
     // Apenas Níveis 1, 2 e 3 podem criar usuários
     if (levelNum > 3) {
-      response.status(403).json({ error: "Sem permissão para criar usuários" });
+      functions.logger.warn("Usuário sem permissão para criar outros usuários", {
+        levelNum: levelNum
+      });
+      setCorsHeaders(response);
+      response.status(403).json({ 
+        error: `Sem permissão para criar usuários. Seu nível (${adminHierarchy}) não permite esta ação. Apenas Níveis 1, 2 e 3 podem criar usuários.`,
+        userLevel: adminHierarchy
+      });
       return;
     }
 
     // Extrai dados do corpo da requisição
     const { email, password, firstName, lastName, hierarchyLevel } = request.body;
+    
+    functions.logger.info("Dados recebidos:", {
+      email: email ? `${email.substring(0, 3)}***` : 'não fornecido',
+      hasPassword: !!password,
+      firstName,
+      lastName,
+      hierarchyLevel
+    });
 
     if (!email || !password || !firstName || !lastName || !hierarchyLevel) {
+      functions.logger.warn("Campos obrigatórios faltando", {
+        hasEmail: !!email,
+        hasPassword: !!password,
+        hasFirstName: !!firstName,
+        hasLastName: !!lastName,
+        hasHierarchyLevel: !!hierarchyLevel
+      });
+      setCorsHeaders(response);
       response.status(400).json({ error: "Todos os campos são obrigatórios" });
       return;
     }
 
-    // Cria o usuário no Firebase Auth
-    const userRecord = await admin.auth().createUser({
-      email: email,
-      password: password,
-      displayName: `${firstName} ${lastName}`,
-      emailVerified: false
-    });
+    // Valida formato do email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      functions.logger.warn("Email inválido:", email);
+      setCorsHeaders(response);
+      response.status(400).json({ error: "Formato de e-mail inválido" });
+      return;
+    }
 
-    functions.logger.info(`Usuário criado no Auth: ${userRecord.uid}`);
+    // Valida senha
+    if (password.length < 6) {
+      functions.logger.warn("Senha muito curta", { length: password.length });
+      setCorsHeaders(response);
+      response.status(400).json({ error: "A senha deve ter pelo menos 6 caracteres" });
+      return;
+    }
+
+    // Valida nível hierárquico
+    const validLevels = ["Nível 1", "Nível 2", "Nível 3", "Nível 4", "Nível 5", "Nível 6"];
+    if (!validLevels.includes(hierarchyLevel)) {
+      functions.logger.warn("Nível hierárquico inválido", { hierarchyLevel });
+      setCorsHeaders(response);
+      response.status(400).json({ 
+        error: `Nível hierárquico inválido: ${hierarchyLevel}. Níveis válidos: ${validLevels.join(", ")}` 
+      });
+      return;
+    }
+
+    // Verifica se o administrador pode criar o nível solicitado
+    const targetLevelMatch = hierarchyLevel.match(/\d+/);
+    const targetLevelNum = targetLevelMatch ? parseInt(targetLevelMatch[0], 10) : 5;
+    
+    // Nível 1 pode criar qualquer nível (incluindo outro Nível 1)
+    // Outros níveis só podem criar níveis inferiores
+    if (levelNum !== 1 && levelNum >= targetLevelNum) {
+      functions.logger.warn("Tentativa de criar nível igual ou superior", {
+        adminLevel: levelNum,
+        targetLevel: targetLevelNum
+      });
+      setCorsHeaders(response);
+      response.status(403).json({ 
+        error: `Você não pode criar usuários do nível ${hierarchyLevel}. Apenas níveis inferiores ao seu (${adminHierarchy}) podem ser criados.` 
+      });
+      return;
+    }
+
+    // Cria o usuário no Firebase Auth
+    functions.logger.info("Criando usuário no Firebase Auth...", {
+      email: email.substring(0, 3) + "***",
+      hierarchyLevel
+    });
+    let userRecord;
+    try {
+      userRecord = await admin.auth().createUser({
+        email: email,
+        password: password,
+        displayName: `${firstName} ${lastName}`,
+        emailVerified: false
+      });
+      functions.logger.info(`✅ Usuário criado no Auth: ${userRecord.uid}`, {
+        email: email.substring(0, 3) + "***",
+        hierarchyLevel
+      });
+    } catch (authError: any) {
+      functions.logger.error("Erro ao criar usuário no Auth:", {
+        code: authError.code,
+        message: authError.message,
+        email: email.substring(0, 3) + "***"
+      });
+      throw authError; // Re-lança para ser tratado no catch externo
+    }
 
     // Retorna sucesso com o UID do usuário criado
+    setCorsHeaders(response);
     response.status(200).json({
       success: true,
       uid: userRecord.uid,
@@ -1069,17 +1195,48 @@ export const createUserAuth = functions.https.onRequest(async (request, response
     });
 
   } catch (error: any) {
-    functions.logger.error("Erro ao criar usuário:", error);
+    functions.logger.error("Erro ao criar usuário:", {
+      message: error.message,
+      code: error.code,
+      stack: error.stack,
+      name: error.name
+    });
+    
+    // Aplicar CORS antes de retornar erro
+    setCorsHeaders(response);
     
     // Mapeia erros específicos do Firebase
     if (error.code === 'auth/email-already-exists') {
-      response.status(400).json({ error: "Este e-mail já está sendo usado" });
+      response.status(400).json({ 
+        error: "Este e-mail já está sendo usado",
+        code: error.code 
+      });
     } else if (error.code === 'auth/invalid-email') {
-      response.status(400).json({ error: "E-mail inválido" });
+      response.status(400).json({ 
+        error: "E-mail inválido",
+        code: error.code 
+      });
     } else if (error.code === 'auth/weak-password') {
-      response.status(400).json({ error: "Senha muito fraca" });
+      response.status(400).json({ 
+        error: "Senha muito fraca. Use pelo menos 6 caracteres",
+        code: error.code 
+      });
+    } else if (error.code === 'auth/operation-not-allowed') {
+      response.status(403).json({ 
+        error: "Operação não permitida. Verifique as configurações do Firebase",
+        code: error.code 
+      });
+    } else if (error.code === 'auth/network-request-failed') {
+      response.status(503).json({ 
+        error: "Erro de rede. Tente novamente mais tarde",
+        code: error.code 
+      });
     } else {
-      response.status(500).json({ error: "Erro interno do servidor" });
+      response.status(500).json({ 
+        error: error.message || "Erro interno do servidor",
+        code: error.code || 'unknown',
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
     }
   }
 });

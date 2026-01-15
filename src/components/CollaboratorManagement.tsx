@@ -47,7 +47,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { db } from "@/config/firebase";
+import { db, FUNCTIONS_BASE_URL } from "@/config/firebase";
 import { collection, getDocs, addDoc, deleteDoc, doc, serverTimestamp, setDoc, updateDoc, query, where } from "firebase/firestore";
 import { Collaborator, HierarchyLevel, CustomPermissions } from "@/types";
 import { createUserWithEmailAndPassword, deleteUser, getAuth, updateProfile, signInWithEmailAndPassword } from "firebase/auth";
@@ -412,32 +412,74 @@ export const CollaboratorManagement = () => {
 
       // 📡 Chamar função serverless para criar usuário no Auth
       console.log('🚀 Chamando função serverless para criar usuário...');
+      console.log('📧 Email:', newCollaborator.email);
+      console.log('👤 Nome:', newCollaborator.firstName, newCollaborator.lastName);
+      console.log('📊 Nível:', newCollaborator.hierarchyLevel);
       toast.info("Criando usuário no sistema de autenticação...");
       
       const token = await currentUser.getIdToken();
+      console.log('🔑 Token obtido, fazendo requisição...');
       
-      const createUserResponse = await fetch('https://us-central1-cerrado-engenharia.cloudfunctions.net/createUserAuth', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          email: newCollaborator.email,
-          password: newCollaborator.password,
-          firstName: newCollaborator.firstName,
-          lastName: newCollaborator.lastName,
-          hierarchyLevel: newCollaborator.hierarchyLevel
-        })
-      });
-
-      if (!createUserResponse.ok) {
-        const errorData = await createUserResponse.json();
-        throw new Error(errorData.error || 'Erro ao criar usuário no Auth');
+      let createUserResponse;
+      try {
+        createUserResponse = await fetch(`${FUNCTIONS_BASE_URL}/createUserAuth`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            email: newCollaborator.email,
+            password: newCollaborator.password,
+            firstName: newCollaborator.firstName,
+            lastName: newCollaborator.lastName,
+            hierarchyLevel: newCollaborator.hierarchyLevel
+          })
+        });
+        
+        console.log('📡 Resposta recebida:', {
+          status: createUserResponse.status,
+          statusText: createUserResponse.statusText,
+          ok: createUserResponse.ok
+        });
+      } catch (fetchError: any) {
+        console.error('❌ Erro na requisição fetch:', fetchError);
+        throw new Error(`Erro de conexão: ${fetchError.message || 'Não foi possível conectar ao servidor'}`);
       }
 
-      const authResult = await createUserResponse.json();
+      if (!createUserResponse.ok) {
+        let errorMessage = `Erro ${createUserResponse.status}: ${createUserResponse.statusText}`;
+        try {
+          const errorData = await createUserResponse.json();
+          errorMessage = errorData.error || errorMessage;
+          console.error('❌ Erro da função serverless:', errorData);
+        } catch (parseError) {
+          // Se não conseguir parsear JSON, tentar ler como texto
+          try {
+            const errorText = await createUserResponse.text();
+            console.error('❌ Erro da função serverless (texto):', errorText);
+            errorMessage = errorText || errorMessage;
+          } catch (textError) {
+            console.error('❌ Não foi possível ler a resposta de erro');
+          }
+        }
+        throw new Error(errorMessage);
+      }
+
+      let authResult;
+      try {
+        authResult = await createUserResponse.json();
+        console.log('✅ Resposta JSON recebida:', authResult);
+      } catch (parseError) {
+        console.error('❌ Erro ao parsear resposta JSON:', parseError);
+        throw new Error('Resposta inválida do servidor');
+      }
+      
       const newUserId = authResult.uid;
+      if (!newUserId) {
+        console.error('❌ UID não encontrado na resposta:', authResult);
+        throw new Error('UID do usuário não foi retornado pelo servidor');
+      }
       
       console.log('✅ Usuário criado com sucesso no Auth:', newUserId);
       toast.success("Usuário criado no sistema de autenticação!");
