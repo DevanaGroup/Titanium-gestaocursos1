@@ -127,6 +127,7 @@ const fetchCEP = async (cep: string): Promise<TeacherAddress | null> => {
     return {
       cep: cleanCEP,
       street: data.logradouro || '',
+      number: '',
       neighborhood: data.bairro || '',
       city: data.localidade || '',
       state: data.uf || ''

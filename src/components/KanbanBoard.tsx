@@ -999,7 +999,7 @@ export default function KanbanBoard() {
       // Atualizar na lista local
       setTasks(prev => 
         prev.map(task => 
-          task.id === taskToEdit.id ? { ...taskToEdit, assignedToName, clientName } : task
+          task.id === taskToEdit.id ? { ...taskToEdit, assignedToName, clientName: taskToEdit.clientName } : task
         )
       );
       
