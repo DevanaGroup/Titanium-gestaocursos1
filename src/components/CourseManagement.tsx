@@ -273,26 +273,35 @@ export const CourseManagement = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Título</TableHead>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead>Duração</TableHead>
-                  <TableHead>Instrutor</TableHead>
-                  <TableHead>Preço</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead className="text-center">Título</TableHead>
+                  <TableHead className="text-center">Descrição</TableHead>
+                  <TableHead className="text-center">Duração</TableHead>
+                  <TableHead className="text-center">Instrutor</TableHead>
+                  <TableHead className="text-center">Preço</TableHead>
+                  <TableHead className="text-center">Status</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredCourses.map((course) => (
                   <TableRow key={course.id}>
-                    <TableCell className="font-medium">{course.title}</TableCell>
-                    <TableCell className="max-w-xs truncate">{course.description}</TableCell>
-                    <TableCell>{course.duration || "-"}</TableCell>
-                    <TableCell>{course.instructor || "-"}</TableCell>
-                    <TableCell>
+                    <TableCell className="text-center font-medium">
+                      <div 
+                        className="truncate max-w-[15ch] mx-auto" 
+                        title={course.title}
+                      >
+                        {course.title && course.title.length > 15 
+                          ? `${course.title.substring(0, 15)}...` 
+                          : course.title}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center max-w-xs truncate">{course.description}</TableCell>
+                    <TableCell className="text-center">{course.duration || "-"}</TableCell>
+                    <TableCell className="text-center">{course.instructor || "-"}</TableCell>
+                    <TableCell className="text-center">
                       {course.price ? `R$ ${course.price.toFixed(2)}` : "Gratuito"}
                     </TableCell>
-                    <TableCell>{getStatusBadge(course.status)}</TableCell>
+                    <TableCell className="text-center">{getStatusBadge(course.status)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button

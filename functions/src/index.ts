@@ -1163,7 +1163,10 @@ export const createUserAuth = functions.https.onRequest(async (request, response
     // Cria o usuário no Firebase Auth
     functions.logger.info("Criando usuário no Firebase Auth...", {
       email: email.substring(0, 3) + "***",
-      hierarchyLevel
+      hierarchyLevel,
+      adminLevel: adminHierarchy,
+      adminLevelNum: levelNum,
+      targetLevelNum: targetLevelNum
     });
     let userRecord;
     try {
@@ -1175,18 +1178,47 @@ export const createUserAuth = functions.https.onRequest(async (request, response
       });
       functions.logger.info(`✅ Usuário criado no Auth: ${userRecord.uid}`, {
         email: email.substring(0, 3) + "***",
-        hierarchyLevel
+        hierarchyLevel,
+        uid: userRecord.uid
       });
     } catch (authError: any) {
       functions.logger.error("Erro ao criar usuário no Auth:", {
         code: authError.code,
         message: authError.message,
-        email: email.substring(0, 3) + "***"
+        email: email.substring(0, 3) + "***",
+        stack: authError.stack
       });
-      throw authError; // Re-lança para ser tratado no catch externo
+      // Aplicar CORS antes de retornar erro
+      setCorsHeaders(response);
+      // Retornar erro específico do Auth sem lançar exceção
+      if (authError.code === 'auth/email-already-exists') {
+        response.status(400).json({ 
+          error: "Este e-mail já está sendo usado",
+          code: authError.code 
+        });
+        return;
+      } else if (authError.code === 'auth/invalid-email') {
+        response.status(400).json({ 
+          error: "E-mail inválido",
+          code: authError.code 
+        });
+        return;
+      } else if (authError.code === 'auth/weak-password') {
+        response.status(400).json({ 
+          error: "Senha muito fraca. Use pelo menos 6 caracteres",
+          code: authError.code 
+        });
+        return;
+      }
+      // Para outros erros de Auth, re-lançar para ser tratado no catch externo
+      throw authError;
     }
 
     // Retorna sucesso com o UID do usuário criado
+    functions.logger.info("Retornando resposta de sucesso", {
+      uid: userRecord.uid,
+      email: email.substring(0, 3) + "***"
+    });
     setCorsHeaders(response);
     response.status(200).json({
       success: true,
@@ -1199,11 +1231,19 @@ export const createUserAuth = functions.https.onRequest(async (request, response
       message: error.message,
       code: error.code,
       stack: error.stack,
-      name: error.name
+      name: error.name,
+      type: typeof error,
+      keys: error ? Object.keys(error) : []
     });
     
-    // Aplicar CORS antes de retornar erro
+    // Aplicar CORS antes de retornar erro (sempre)
     setCorsHeaders(response);
+    
+    // Verificar se a resposta já foi enviada
+    if (response.headersSent) {
+      functions.logger.warn("Resposta já foi enviada, não é possível enviar erro");
+      return;
+    }
     
     // Mapeia erros específicos do Firebase
     if (error.code === 'auth/email-already-exists') {
@@ -1211,32 +1251,44 @@ export const createUserAuth = functions.https.onRequest(async (request, response
         error: "Este e-mail já está sendo usado",
         code: error.code 
       });
+      return;
     } else if (error.code === 'auth/invalid-email') {
       response.status(400).json({ 
         error: "E-mail inválido",
         code: error.code 
       });
+      return;
     } else if (error.code === 'auth/weak-password') {
       response.status(400).json({ 
         error: "Senha muito fraca. Use pelo menos 6 caracteres",
         code: error.code 
       });
+      return;
     } else if (error.code === 'auth/operation-not-allowed') {
       response.status(403).json({ 
         error: "Operação não permitida. Verifique as configurações do Firebase",
         code: error.code 
       });
+      return;
     } else if (error.code === 'auth/network-request-failed') {
       response.status(503).json({ 
         error: "Erro de rede. Tente novamente mais tarde",
         code: error.code 
       });
+      return;
     } else {
-      response.status(500).json({ 
-        error: error.message || "Erro interno do servidor",
-        code: error.code || 'unknown',
-        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      // Erro genérico
+      const errorMessage = error?.message || error?.toString() || "Erro interno do servidor";
+      functions.logger.error("Erro não mapeado, retornando 500", {
+        errorMessage,
+        code: error?.code || 'unknown'
       });
+      response.status(500).json({ 
+        error: errorMessage,
+        code: error?.code || 'unknown',
+        details: process.env.NODE_ENV === 'development' ? error?.stack : undefined
+      });
+      return;
     }
   }
 });

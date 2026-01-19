@@ -233,6 +233,9 @@ export const CollaboratorManagement = () => {
           console.log("🔍 CollaboratorManagement - Dados do usuário atual:", userData);
           setCurrentUserData(userData);
           console.log("✅ CollaboratorManagement - Usuario atual carregado:", userData.hierarchyLevel);
+          // Log dos níveis que pode gerenciar
+          const managedLevels = getManagedLevels(userData.hierarchyLevel);
+          console.log("📊 CollaboratorManagement - Níveis que pode gerenciar:", managedLevels);
         } else {
           console.log("⚠️ CollaboratorManagement - Usuario atual não encontrado na coleção users");
         }
@@ -378,12 +381,29 @@ export const CollaboratorManagement = () => {
 
       // Verificar permissões do usuário atual
       if (!currentUserData?.hierarchyLevel || !hasPermission(currentUserData.hierarchyLevel, 'manage_department')) {
+        console.error('❌ Sem permissão para gerenciar departamento:', {
+          currentUserLevel: currentUserData?.hierarchyLevel,
+          hasPermission: hasPermission(currentUserData?.hierarchyLevel || "Nível 5", 'manage_department')
+        });
         toast.error("Você não tem permissão para adicionar novos usuários!");
         setIsLoading(false);
         return;
       }
 
-      if (!canManageLevel(currentUserData.hierarchyLevel, newCollaborator.hierarchyLevel)) {
+      // Verificar se pode criar o nível solicitado
+      const canCreate = canManageLevel(currentUserData.hierarchyLevel, newCollaborator.hierarchyLevel);
+      console.log('🔍 Verificação de criação de nível:', {
+        currentUserLevel: currentUserData.hierarchyLevel,
+        targetLevel: newCollaborator.hierarchyLevel,
+        canCreate: canCreate,
+        managedLevels: getManagedLevels(currentUserData.hierarchyLevel)
+      });
+
+      if (!canCreate) {
+        console.error('❌ Não pode criar nível:', {
+          currentUserLevel: currentUserData.hierarchyLevel,
+          targetLevel: newCollaborator.hierarchyLevel
+        });
         toast.error(`Você não pode criar usuários do nível: ${newCollaborator.hierarchyLevel}`);
         setIsLoading(false);
         return;
@@ -500,6 +520,38 @@ export const CollaboratorManagement = () => {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
+      console.log('✅ Dados salvos na coleção users');
+
+      // ✅ SALVAR DADOS NA COLEÇÃO COLLABORATORS_UNIFIED (necessário para Dashboard e outros componentes)
+      console.log('💾 Salvando dados na coleção collaborators_unified...');
+      const collaboratorUnifiedData = {
+        uid: newUserId,
+        email: newCollaborator.email,
+        firstName: newCollaborator.firstName,
+        lastName: newCollaborator.lastName,
+        displayName: newCollaborator.firstName,
+        phone: newCollaborator.phone || "",
+        whatsapp: newCollaborator.whatsapp || "",
+        birthDate: newCollaborator.birthDate || null,
+        hierarchyLevel: newCollaborator.hierarchyLevel,
+        customPermissions: newCollaborator.customPermissions || null,
+        avatar: null,
+        photoURL: null,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+      
+      await setDoc(doc(db, 'collaborators_unified', newUserId), collaboratorUnifiedData);
+      console.log('✅ Dados salvos na coleção collaborators_unified');
+      
+      // Verificar se foi criado corretamente
+      const verifyDoc = await getDoc(doc(db, 'collaborators_unified', newUserId));
+      if (verifyDoc.exists()) {
+        const verifyData = verifyDoc.data();
+        console.log("✅ Verificação: registro existe em collaborators_unified com hierarchyLevel:", verifyData.hierarchyLevel);
+      } else {
+        console.error("❌ ERRO: registro não foi criado em collaborators_unified");
+      }
 
       // Criar log de auditoria
       console.log('📝 Criando log de auditoria...');
@@ -821,9 +873,7 @@ export const CollaboratorManagement = () => {
         if (originalCollaborator.lastName !== editingCollaborator.lastName) {
           changes['Sobrenome'] = { from: originalCollaborator.lastName, to: editingCollaborator.lastName };
         }
-        if (originalCollaborator.email !== editingCollaborator.email) {
-          changes['E-mail'] = { from: originalCollaborator.email, to: editingCollaborator.email };
-        }
+        // E-mail não pode ser alterado por questões de segurança - removido da auditoria
         if (originalCollaborator.hierarchyLevel !== editingCollaborator.hierarchyLevel) {
           changes['Nível Hierárquico'] = { from: originalCollaborator.hierarchyLevel, to: editingCollaborator.hierarchyLevel };
         }
@@ -845,11 +895,12 @@ export const CollaboratorManagement = () => {
       const userDocRef = doc(db, 'users', editingCollaborator.uid);
       const userDoc = await getDoc(userDocRef);
       
+      // Usar e-mail original para garantir segurança (e-mail não pode ser alterado)
       const updateData: any = {
         firstName: editingCollaborator.firstName,
         lastName: editingCollaborator.lastName,
         displayName: editingCollaborator.firstName,
-        email: editingCollaborator.email,
+        email: originalCollaborator.email, // Sempre usar o e-mail original
         hierarchyLevel: editingCollaborator.hierarchyLevel,
         customPermissions: editingCollaborator.customPermissions || null,
         updatedAt: serverTimestamp()
@@ -901,7 +952,7 @@ export const CollaboratorManagement = () => {
         await setDoc(collaboratorUnifiedRef, {
           uid: editingCollaborator.uid,
           ...unifiedUpdateData,
-          email: editingCollaborator.email,
+          email: originalCollaborator.email, // Sempre usar o e-mail original
           hierarchyLevel: editingCollaborator.hierarchyLevel,
           createdAt: new Date()
         });
@@ -1043,15 +1094,23 @@ export const CollaboratorManagement = () => {
                 <SelectValue placeholder="Selecione o nível" />
               </SelectTrigger>
               <SelectContent>
-                {getManagedLevels(currentUserData?.hierarchyLevel || "Nível 5").map((level) => (
-                  <SelectItem key={level} value={level}>
-                    <div className="flex items-center gap-2">
-                      <span className={`px-2 py-1 rounded text-xs ${getHierarchyColor(level)}`}>
-                        {level}
-                      </span>
-                    </div>
-                  </SelectItem>
-                ))}
+                {(() => {
+                  const userLevel = currentUserData?.hierarchyLevel || "Nível 5";
+                  const managedLevels = getManagedLevels(userLevel);
+                  console.log('🔍 Níveis disponíveis para criação:', {
+                    userLevel,
+                    managedLevels
+                  });
+                  return managedLevels.map((level) => (
+                    <SelectItem key={level} value={level}>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-1 rounded text-xs ${getHierarchyColor(level)}`}>
+                          {level}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ));
+                })()}
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
@@ -1496,9 +1555,13 @@ export const CollaboratorManagement = () => {
                   id="edit-email"
                   type="email"
                   value={editingCollaborator.email}
-                  onChange={(e) => setEditingCollaborator(prev => prev ? { ...prev, email: e.target.value } : null)}
+                  disabled
                   placeholder="email@exemplo.com"
+                  className="bg-muted cursor-not-allowed opacity-60"
                 />
+                <p className="text-xs text-muted-foreground">
+                  O e-mail não pode ser alterado por questões de segurança
+                </p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-2">

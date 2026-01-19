@@ -1155,7 +1155,16 @@ export const TeacherManagement = () => {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="text-center">{teacher.email}</TableCell>
+                      <TableCell className="text-center">
+                        <div 
+                          className="truncate max-w-[15ch]" 
+                          title={teacher.email}
+                        >
+                          {teacher.email && teacher.email.length > 15 
+                            ? `${teacher.email.substring(0, 15)}...` 
+                            : teacher.email}
+                        </div>
+                      </TableCell>
                       <TableCell className="text-center">{teacher.cpf ? formatCPF(teacher.cpf) : "-"}</TableCell>
                       <TableCell className="text-center">{teacher.cro || "-"}</TableCell>
                       <TableCell className="text-center whitespace-nowrap">{teacher.phoneNumber || "-"}</TableCell>

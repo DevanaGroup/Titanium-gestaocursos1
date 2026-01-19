@@ -690,29 +690,40 @@ export const LessonManagement = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-left">Solicitante</TableHead>
-                  <TableHead className="text-left">Consultor</TableHead>
-                  <TableHead className="text-left">Curso</TableHead>
-                  <TableHead className="text-left">Data</TableHead>
-                  <TableHead className="text-left">Local</TableHead>
-                  <TableHead className="text-left">Duração</TableHead>
-                  <TableHead className="text-left">Status</TableHead>
+                  <TableHead className="text-center">Solicitante</TableHead>
+                  <TableHead className="text-center">Consultor</TableHead>
+                  <TableHead className="text-center">Curso</TableHead>
+                  <TableHead className="text-center">Data</TableHead>
+                  <TableHead className="text-center">Local</TableHead>
+                  <TableHead className="text-center">Duração</TableHead>
+                  <TableHead className="text-center">Status</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredLessons.map((lesson) => (
                   <TableRow key={lesson.id}>
-                    <TableCell className="text-left font-medium">{lesson.requesterName || "-"}</TableCell>
-                    <TableCell className="text-left">{lesson.consultantName || "-"}</TableCell>
-                    <TableCell className="text-left">{lesson.courseTitle || "-"}</TableCell>
-                    <TableCell className="text-left whitespace-nowrap">
+                    <TableCell className="text-center font-medium">{lesson.requesterName || "-"}</TableCell>
+                    <TableCell className="text-center">{lesson.consultantName || "-"}</TableCell>
+                    <TableCell className="text-center">
+                      {lesson.courseTitle ? (
+                        <div 
+                          className="truncate max-w-[15ch] mx-auto" 
+                          title={lesson.courseTitle}
+                        >
+                          {lesson.courseTitle.length > 15 
+                            ? `${lesson.courseTitle.substring(0, 15)}...` 
+                            : lesson.courseTitle}
+                        </div>
+                      ) : "-"}
+                    </TableCell>
+                    <TableCell className="text-center whitespace-nowrap">
                       {lesson.lessonDate ? new Date(lesson.lessonDate).toLocaleDateString('pt-BR') : "-"}
                       {lesson.lessonStartTime && ` ${lesson.lessonStartTime}`}
                     </TableCell>
-                    <TableCell className="text-left max-w-[200px] truncate">{lesson.locationName || "-"}</TableCell>
-                    <TableCell className="text-left whitespace-nowrap">{lesson.lessonDuration || lesson.customDuration || "-"}</TableCell>
-                    <TableCell className="text-left">{getStatusBadge(lesson.status)}</TableCell>
+                    <TableCell className="text-center max-w-[200px] truncate">{lesson.locationName || "-"}</TableCell>
+                    <TableCell className="text-center whitespace-nowrap">{lesson.lessonDuration || lesson.customDuration || "-"}</TableCell>
+                    <TableCell className="text-center">{getStatusBadge(lesson.status)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button

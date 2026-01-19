@@ -76,16 +76,36 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
     }
   }, [mobileOpen]);
 
-  // Auto-expandir tarefas quando estiver nas tabs de tarefas
-  // No mobile, sempre expandir as tarefas
+  // Auto-expandir menu pai quando um sub-item estiver ativo
+  // No mobile, sempre expandir os menus
   useEffect(() => {
     if (isMobile) {
       setTasksExpanded(true);
       setCoursesExpanded(true);
-    } else if (activeTab === 'tasks' || activeTab === 'tasks-archived' || location.pathname === '/tasks' || location.pathname === '/tasks/archived') {
-      setTasksExpanded(true);
-    } else if (activeTab === 'courses' || activeTab === 'lessons' || location.pathname === '/courses' || location.pathname === '/lessons') {
-      setCoursesExpanded(true);
+    } else {
+      // Verificar se algum sub-item de Tarefas está ativo
+      const isTasksSubItemActive = 
+        activeTab === 'tasks' || 
+        activeTab === 'tasks-archived' || 
+        location.pathname === '/tasks' || 
+        location.pathname.startsWith('/tasks/');
+      
+      if (isTasksSubItemActive) {
+        setTasksExpanded(true);
+      }
+      
+      // Verificar se algum sub-item de Cursos está ativo
+      const isCoursesSubItemActive = 
+        activeTab === 'courses' || 
+        activeTab === 'lessons' || 
+        activeTab === 'teachers' ||
+        location.pathname === '/courses' || 
+        location.pathname === '/lessons' || 
+        location.pathname === '/teachers';
+      
+      if (isCoursesSubItemActive) {
+        setCoursesExpanded(true);
+      }
     }
   }, [activeTab, isMobile, location.pathname]);
 
@@ -352,10 +372,19 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
     if (itemId === 'home' && location.pathname === '/dashboard') {
       return true;
     }
+    // Tarefas: ativo se estiver em qualquer rota de tarefas
     if (itemId === 'tasks' && (location.pathname === '/tasks' || location.pathname.startsWith('/tasks/'))) {
       return true;
     }
-    if (itemId === 'courses' && (location.pathname === '/courses' || location.pathname === '/lessons' || location.pathname === '/teachers')) {
+    // Cursos: ativo se estiver em qualquer rota relacionada (cursos, aulas, professores)
+    if (itemId === 'courses' && (
+      location.pathname === '/courses' || 
+      location.pathname === '/lessons' || 
+      location.pathname === '/teachers' ||
+      location.pathname.startsWith('/courses/') ||
+      location.pathname.startsWith('/lessons/') ||
+      location.pathname.startsWith('/teachers/')
+    )) {
       return true;
     }
     if (itemId === 'teachers' && location.pathname === '/teachers') {
@@ -403,7 +432,7 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
                     className={`
                       w-full flex items-center justify-between px-2 
                       py-1.5 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
-                      ${tasksExpanded || isItemActive('tasks') || location.pathname === '/tasks/archived'
+                      ${tasksExpanded || isItemActive('tasks') || location.pathname === '/tasks' || location.pathname.startsWith('/tasks/')
                         ? 'bg-red-500 text-white shadow-sm hover:bg-red-500 hover:text-white' 
                         : 'text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200'
                       }
@@ -493,7 +522,7 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
                     className={`
                       w-full flex items-center justify-between px-2 
                       py-1.5 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
-                      ${coursesExpanded || isItemActive('courses') || location.pathname === '/lessons'
+                      ${coursesExpanded || isItemActive('courses') || location.pathname === '/lessons' || location.pathname === '/teachers'
                         ? 'bg-red-500 text-white shadow-sm hover:bg-red-500 hover:text-white' 
                         : 'text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200'
                       }

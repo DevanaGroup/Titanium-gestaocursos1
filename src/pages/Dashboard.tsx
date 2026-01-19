@@ -146,18 +146,36 @@ const Dashboard = () => {
           setEditableFirstName(userData.firstName || "");
           setEditableLastName(userData.lastName || "");
         } else {
-          // Se não encontrou na coleção unificada, definir dados padrão
-          console.error("❌ Dashboard - Usuário não encontrado na coleção collaborators_unified");
-          console.error("   UID do usuário:", user.uid);
-          console.error("   Email do usuário:", user.email);
-          console.error("   Verifique se o cliente foi criado corretamente na coleção collaborators_unified");
-          setUserData({
-            name: "Usuário",
-            role: "Estagiário/Auxiliar",
-            avatar: "/placeholder.svg"
-          });
-          setEditableFirstName("");
-          setEditableLastName("");
+          // Fallback: tentar buscar na coleção users
+          console.log("⚠️ Dashboard - Usuário não encontrado em collaborators_unified, tentando users...");
+          const userDoc = await getDoc(doc(db, "users", user.uid));
+          if (userDoc.exists()) {
+            userData = userDoc.data();
+            console.log("✅ Dashboard - Usuário encontrado na coleção users");
+            const displayName = userData.firstName || "Usuário";
+            const hierarchyLevel = userData.hierarchyLevel || "Estagiário/Auxiliar";
+            
+            setUserData({
+              name: displayName,
+              role: hierarchyLevel,
+              avatar: userData.photoURL || "/placeholder.svg"
+            });
+            
+            setEditableFirstName(userData.firstName || "");
+            setEditableLastName(userData.lastName || "");
+          } else {
+            // Se não encontrou em nenhuma coleção, definir dados padrão
+            console.error("❌ Dashboard - Usuário não encontrado em nenhuma coleção");
+            console.error("   UID do usuário:", user.uid);
+            console.error("   Email do usuário:", user.email);
+            setUserData({
+              name: "Usuário",
+              role: "Estagiário/Auxiliar",
+              avatar: "/placeholder.svg"
+            });
+            setEditableFirstName("");
+            setEditableLastName("");
+          }
         }
       } else {
         setUser(null);
