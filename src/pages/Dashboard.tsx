@@ -21,6 +21,7 @@ import { ClientManagement } from "@/components/ClientManagement";
 import { CourseManagement } from "@/components/CourseManagement";
 import { LessonManagement } from "@/components/LessonManagement";
 import { TeacherManagement } from "@/components/TeacherManagement";
+import { EventosManagement } from "@/components/EventosManagement";
 import { SidebarProvider, useSidebar } from "@/contexts/SidebarContext";
 import CustomSidebar from "@/components/CustomSidebar";
 import KanbanBoard from "@/components/KanbanBoard";
@@ -29,6 +30,9 @@ import { auth, db, storage } from "@/config/firebase";
 import DashboardOverview from "@/components/dashboard/DashboardOverview";
 import ChatbotManager from "@/components/ChatbotManager";
 import { ExpenseRequestManagement } from "@/components/ExpenseRequestManagement";
+import { FinancialIncomes } from "@/components/FinancialIncomes";
+import { FinancialExpenses } from "@/components/FinancialExpenses";
+import { FinancialReports } from "@/components/FinancialReports";
 import Presets from "./Presets";
 import Projects from "./Projects";
 import ProjectWrite from "./ProjectWrite";
@@ -41,7 +45,7 @@ import { useHeaderActions } from '@/contexts/HeaderActionsContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { doc, getDoc, updateDoc, setDoc, collection, getDocs, query, where, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { hasPermission } from "@/utils/hierarchyUtils";
+import { hasPermission, hasFinancialAccess } from "@/utils/hierarchyUtils";
 import { HierarchyLevel } from "@/types";
 import SettingsManager from "@/components/SettingsManager";
 import { SupportMainPage } from "@/components/support/SupportMainPage";
@@ -61,7 +65,7 @@ const Dashboard = () => {
   const location = useLocation();
   // REMOVIDO: const { rightAction } = useHeaderActions();
   const isMobile = useIsMobile();
-  const [activeTab, setActiveTab] = useState<"home" | "collaborators" | "clients" | "calendar" | "tasks" | "tasks-archived" | "chatbot" | "expense-requests" | "support-web" | "settings" | "presets" | "projetos" | "project-write" | "project-view" | "project-map" | "courses" | "lessons" | "teachers">("home");
+  const [activeTab, setActiveTab] = useState<"home" | "collaborators" | "clients" | "calendar" | "eventos" | "tasks" | "tasks-archived" | "chatbot" | "expense-requests" | "financial-incomes" | "financial-expenses" | "financial-reports" | "support-web" | "settings" | "presets" | "projetos" | "project-write" | "project-view" | "project-map" | "courses" | "lessons" | "teachers">("home");
   const [avatarUrl, setAvatarUrl] = useState("/placeholder.svg");
   const [isAvatarDialogOpen, setIsAvatarDialogOpen] = useState(false);
   const [userData, setUserData] = useState<UserData>({
@@ -114,6 +118,21 @@ const Dashboard = () => {
       setActiveTab('lessons');
     } else if (location.pathname === '/courses') {
       setActiveTab('courses');
+    } else if (location.pathname === '/eventos') {
+      setActiveTab('eventos');
+    } else if (location.pathname === '/calendar') {
+      setActiveTab('calendar');
+    } else if (location.pathname === '/financial/expense-requests') {
+      setActiveTab('expense-requests');
+    } else if (location.pathname === '/financial/incomes') {
+      setActiveTab('financial-incomes');
+    } else if (location.pathname === '/financial/expenses') {
+      setActiveTab('financial-expenses');
+    } else if (location.pathname === '/financial/reports') {
+      setActiveTab('financial-reports');
+    } else if (location.pathname.startsWith('/financial')) {
+      // Se estiver em qualquer rota financeira, definir como expense-requests por padrão
+      setActiveTab('expense-requests');
     }
   }, [location]);
 
@@ -604,6 +623,7 @@ const Dashboard = () => {
               )
             )}
             {activeTab === "calendar" && <AgendaComponent userId={user?.uid} userName={userData.name} />}
+            {activeTab === "eventos" && <EventosManagement userId={user?.uid} userName={userData.name} />}
             {activeTab === "tasks" && <div className="w-full h-full flex flex-col"><KanbanBoard /></div>}
             {activeTab === "tasks-archived" && <div className="w-full h-full flex flex-col"><ArchivedTasks /></div>}
             {activeTab === "chatbot" && (
@@ -623,7 +643,74 @@ const Dashboard = () => {
                 </div>
               )
             )}
-            {activeTab === "expense-requests" && <ExpenseRequestManagement />}
+            {activeTab === "expense-requests" && (
+              hasFinancialAccess(userData.role as HierarchyLevel) ? (
+                <ExpenseRequestManagement />
+              ) : (
+                <div className="h-full flex items-center justify-center flex-col">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-8 text-center max-w-md">
+                    <h2 className="text-2xl font-semibold text-yellow-800 mb-4">Acesso Restrito</h2>
+                    <p className="text-yellow-700 mb-6">
+                      O módulo financeiro está disponível apenas para Nível 1, 2 e 3.
+                    </p>
+                    <p className="text-sm text-yellow-600">
+                      Entre em contato com seu superior hierárquico para solicitar acesso.
+                    </p>
+                  </div>
+                </div>
+              )
+            )}
+            {activeTab === "financial-incomes" && (
+              hasFinancialAccess(userData.role as HierarchyLevel) ? (
+                <FinancialIncomes />
+              ) : (
+                <div className="h-full flex items-center justify-center flex-col">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-8 text-center max-w-md">
+                    <h2 className="text-2xl font-semibold text-yellow-800 mb-4">Acesso Restrito</h2>
+                    <p className="text-yellow-700 mb-6">
+                      O módulo de Entradas Financeiras está disponível apenas para Nível 1, 2 e 3.
+                    </p>
+                    <p className="text-sm text-yellow-600">
+                      Entre em contato com seu superior hierárquico para solicitar acesso.
+                    </p>
+                  </div>
+                </div>
+              )
+            )}
+            {activeTab === "financial-expenses" && (
+              hasFinancialAccess(userData.role as HierarchyLevel) ? (
+                <FinancialExpenses />
+              ) : (
+                <div className="h-full flex items-center justify-center flex-col">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-8 text-center max-w-md">
+                    <h2 className="text-2xl font-semibold text-yellow-800 mb-4">Acesso Restrito</h2>
+                    <p className="text-yellow-700 mb-6">
+                      O módulo de Saídas Financeiras está disponível apenas para Nível 1, 2 e 3.
+                    </p>
+                    <p className="text-sm text-yellow-600">
+                      Entre em contato com seu superior hierárquico para solicitar acesso.
+                    </p>
+                  </div>
+                </div>
+              )
+            )}
+            {activeTab === "financial-reports" && (
+              hasFinancialAccess(userData.role as HierarchyLevel) ? (
+                <FinancialReports />
+              ) : (
+                <div className="h-full flex items-center justify-center flex-col">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-8 text-center max-w-md">
+                    <h2 className="text-2xl font-semibold text-yellow-800 mb-4">Acesso Restrito</h2>
+                    <p className="text-yellow-700 mb-6">
+                      O módulo de Relatórios Financeiros está disponível apenas para Nível 1, 2 e 3.
+                    </p>
+                    <p className="text-sm text-yellow-600">
+                      Entre em contato com seu superior hierárquico para solicitar acesso.
+                    </p>
+                  </div>
+                </div>
+              )
+            )}
             {activeTab === "support-web" && (
               hasPermission(userData.role as HierarchyLevel, 'suporte_web') ? (
                 <SupportMainPage />

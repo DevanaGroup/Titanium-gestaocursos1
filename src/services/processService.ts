@@ -8,7 +8,6 @@ import {
   getDoc,
   query, 
   where, 
-  orderBy, 
   Timestamp,
   writeBatch
 } from 'firebase/firestore';
@@ -127,22 +126,26 @@ export const getTaskProcess = async (taskId: string): Promise<TaskProcess | null
     const processDoc = querySnapshot.docs[0];
     const processData = processDoc.data();
     
-    // Buscar steps do processo
+    // Buscar steps do processo (sem orderBy para evitar índice composto; ordenamos em memória)
     const stepsQuery = query(
       collection(db, STEPS_COLLECTION),
-      where('taskId', '==', taskId),
-      orderBy('createdAt', 'asc')
+      where('taskId', '==', taskId)
     );
-    
+
     const stepsSnapshot = await getDocs(stepsQuery);
-    const steps: ProcessStep[] = stepsSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: timestampToDate(doc.data().createdAt),
-      transitedAt: doc.data().transitedAt ? timestampToDate(doc.data().transitedAt) : undefined,
-      signedAt: doc.data().signedAt ? timestampToDate(doc.data().signedAt) : undefined,
-      rejectedAt: doc.data().rejectedAt ? timestampToDate(doc.data().rejectedAt) : undefined,
-    } as ProcessStep));
+    const steps: ProcessStep[] = stepsSnapshot.docs
+      .map(docSnap => {
+        const d = docSnap.data();
+        return {
+          id: docSnap.id,
+          ...d,
+          createdAt: timestampToDate(d.createdAt),
+          transitedAt: d.transitedAt ? timestampToDate(d.transitedAt) : undefined,
+          signedAt: d.signedAt ? timestampToDate(d.signedAt) : undefined,
+          rejectedAt: d.rejectedAt ? timestampToDate(d.rejectedAt) : undefined,
+        } as ProcessStep;
+      })
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
     
     return {
       id: processDoc.id,

@@ -3,10 +3,11 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useSidebar } from '@/contexts/SidebarContext';
 import Logo from '@/components/Logo';
 import { 
-  Home, Users, Calendar, 
+  Home, Users, Calendar, CalendarDays,
   KanbanSquare, FileText, Receipt,
   Settings, HelpCircle, GraduationCap,
-  FolderOpen, ChevronDown, X, Archive, BookOpen, UserCircle
+  FolderOpen, ChevronDown, X, Archive, BookOpen, UserCircle,
+  DollarSign, TrendingUp, TrendingDown, BarChart3
 } from 'lucide-react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
@@ -45,6 +46,7 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
   const [isLoading, setIsLoading] = useState(true);
   const [tasksExpanded, setTasksExpanded] = useState(false);
   const [coursesExpanded, setCoursesExpanded] = useState(false);
+  const [financialExpanded, setFinancialExpanded] = useState(false);
   const [internalMobileOpen, setInternalMobileOpen] = useState(false);
   const [clientId, setClientId] = useState<string | null>(null); // Para Cliente Externo e Cliente
   
@@ -55,9 +57,14 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
   const routeMap: { [key: string]: string } = {
     'home': '/dashboard',
     'calendar': '/calendar',
+    'eventos': '/eventos',
     'tasks': '/tasks',
     'tasks-archived': '/tasks/archived',
-    'expense-requests': '/expense-requests',
+    'financial': '/financial',
+    'expense-requests': '/financial/expense-requests', // Mantido para compatibilidade
+    'financial-incomes': '/financial/incomes',
+    'financial-expenses': '/financial/expenses',
+    'financial-reports': '/financial/reports',
     'courses': '/courses',
     'lessons': '/lessons',
     'teachers': '/teachers',
@@ -82,6 +89,7 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
     if (isMobile) {
       setTasksExpanded(true);
       setCoursesExpanded(true);
+      setFinancialExpanded(true);
     } else {
       // Verificar se algum sub-item de Tarefas está ativo
       const isTasksSubItemActive = 
@@ -106,11 +114,24 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
       if (isCoursesSubItemActive) {
         setCoursesExpanded(true);
       }
+      
+      // Verificar se algum sub-item de Financeiros está ativo
+      const isFinancialSubItemActive = 
+        activeTab === 'financial' ||
+        activeTab === 'expense-requests' ||
+        activeTab === 'financial-incomes' ||
+        activeTab === 'financial-expenses' ||
+        activeTab === 'financial-reports' ||
+        location.pathname.startsWith('/financial');
+      
+      if (isFinancialSubItemActive) {
+        setFinancialExpanded(true);
+      }
     }
   }, [activeTab, isMobile, location.pathname]);
 
   // Menu padrão para usuários não-comerciais (Nível 2-5)
-  // Ordem: Início, Agenda, Tarefas, Solicitações, Colaboradores (se permitido), Suporte
+  // Ordem: Início, Agenda, Eventos, Tarefas, Financeiros, Colaboradores (se permitido), Suporte
   const defaultMenuItems = [
     {
       id: "home",
@@ -125,6 +146,12 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
       requiresPermission: false
     },
     {
+      id: "eventos",
+      icon: <CalendarDays className="h-4 w-4" />,
+      label: "Eventos",
+      requiresPermission: false
+    },
+    {
       id: "tasks",
       icon: <KanbanSquare className="h-4 w-4" />,
       label: "Tarefas",
@@ -132,10 +159,12 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
       hasSubmenu: true
     },
     {
-      id: "expense-requests",
-      icon: <Receipt className="h-4 w-4" />,
-      label: "Solicitações",
-      requiresPermission: false
+      id: "financial",
+      icon: <DollarSign className="h-4 w-4" />,
+      label: "Financeiros",
+      requiresPermission: true,
+      permission: 'view_financial_reports',
+      hasSubmenu: true
     },
     {
       id: "courses",
@@ -187,7 +216,7 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
   ];
 
   // Menu completo para Nível 1 (acesso total a todos os módulos)
-  // Ordem: Início, Colaboradores, Agenda, Tarefas, Solicitações, Configurações, Suporte
+  // Ordem: Início, Colaboradores, Agenda, Tarefas, Financeiros, Configurações, Suporte
   const directorTiMenuItems = [
     {
       id: "home",
@@ -217,6 +246,12 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
       requiresPermission: false
     },
     {
+      id: "eventos",
+      icon: <CalendarDays className="h-4 w-4" />,
+      label: "Eventos",
+      requiresPermission: false
+    },
+    {
       id: "tasks",
       icon: <KanbanSquare className="h-4 w-4" />,
       label: "Tarefas",
@@ -224,10 +259,12 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
       hasSubmenu: true
     },
     {
-      id: "expense-requests",
-      icon: <Receipt className="h-4 w-4" />,
-      label: "Solicitações",
-      requiresPermission: false
+      id: "financial",
+      icon: <DollarSign className="h-4 w-4" />,
+      label: "Financeiros",
+      requiresPermission: true,
+      permission: 'view_financial_reports',
+      hasSubmenu: true
     },
     {
       id: "settings",
@@ -385,6 +422,10 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
       location.pathname.startsWith('/lessons/') ||
       location.pathname.startsWith('/teachers/')
     )) {
+      return true;
+    }
+    // Financeiros: ativo se estiver em qualquer rota financeira
+    if (itemId === 'financial' && location.pathname.startsWith('/financial')) {
       return true;
     }
     if (itemId === 'teachers' && location.pathname === '/teachers') {
@@ -624,6 +665,140 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
                     </div>
                   )}
                 </>
+              ) : item.id === 'financial' && (!isCollapsed || isMobile) ? (
+                <>
+                  <Button
+                    variant="ghost"
+                    type="button"
+                    className={`
+                      w-full flex items-center justify-between px-2 
+                      py-1.5 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
+                      ${financialExpanded || isItemActive('financial') || location.pathname.startsWith('/financial')
+                        ? 'bg-red-500 text-white shadow-sm hover:bg-red-500 hover:text-white' 
+                        : 'text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200'
+                      }
+                    `}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (!isMobile) {
+                        setFinancialExpanded(!financialExpanded);
+                      }
+                    }}
+                  >
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0 mr-2">
+                        {item.icon}
+                      </div>
+                      <span className="text-sm font-medium truncate">
+                        {item.label}
+                      </span>
+                    </div>
+                    <ChevronDown 
+                      className={`h-4 w-4 transition-transform ${financialExpanded ? 'rotate-180' : ''}`}
+                    />
+                  </Button>
+                  {financialExpanded && (
+                    <div className="ml-6 space-y-1 mt-1">
+                      <Button
+                        variant="ghost"
+                        type="button"
+                        className={`
+                          w-full flex items-center justify-start px-2 
+                          py-1.5 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
+                          ${location.pathname === '/financial/expense-requests'
+                            ? 'bg-red-500 text-white shadow-sm hover:bg-red-500 hover:text-white' 
+                            : 'text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200'
+                          }
+                        `}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          onTabChange('expense-requests');
+                          navigate('/financial/expense-requests', { state: { activeTab: 'expense-requests' } });
+                          if (isMobile) {
+                            setIsMobileOpen(false);
+                          }
+                        }}
+                      >
+                        <Receipt className="h-3 w-3 mr-2" />
+                        <span className="text-sm">Solicitações</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        type="button"
+                        className={`
+                          w-full flex items-center justify-start px-2 
+                          py-1.5 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
+                          ${location.pathname === '/financial/incomes'
+                            ? 'bg-red-500 text-white shadow-sm hover:bg-red-500 hover:text-white' 
+                            : 'text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200'
+                          }
+                        `}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          onTabChange('financial-incomes');
+                          navigate('/financial/incomes', { state: { activeTab: 'financial-incomes' } });
+                          if (isMobile) {
+                            setIsMobileOpen(false);
+                          }
+                        }}
+                      >
+                        <TrendingUp className="h-3 w-3 mr-2" />
+                        <span className="text-sm">Entradas</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        type="button"
+                        className={`
+                          w-full flex items-center justify-start px-2 
+                          py-1.5 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
+                          ${location.pathname === '/financial/expenses'
+                            ? 'bg-red-500 text-white shadow-sm hover:bg-red-500 hover:text-white' 
+                            : 'text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200'
+                          }
+                        `}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          onTabChange('financial-expenses');
+                          navigate('/financial/expenses', { state: { activeTab: 'financial-expenses' } });
+                          if (isMobile) {
+                            setIsMobileOpen(false);
+                          }
+                        }}
+                      >
+                        <TrendingDown className="h-3 w-3 mr-2" />
+                        <span className="text-sm">Saídas</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        type="button"
+                        className={`
+                          w-full flex items-center justify-start px-2 
+                          py-1.5 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
+                          ${location.pathname === '/financial/reports'
+                            ? 'bg-red-500 text-white shadow-sm hover:bg-red-500 hover:text-white' 
+                            : 'text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200'
+                          }
+                        `}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          onTabChange('financial-reports');
+                          navigate('/financial/reports', { state: { activeTab: 'financial-reports' } });
+                          if (isMobile) {
+                            setIsMobileOpen(false);
+                          }
+                        }}
+                      >
+                        <BarChart3 className="h-3 w-3 mr-2" />
+                        <span className="text-sm">Relatórios</span>
+                      </Button>
+                    </div>
+                  )}
+                </>
               ) : (
                 <Button
                   variant="ghost"
@@ -643,6 +818,8 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
                       setTasksExpanded(!tasksExpanded);
                     } else if (item.id === 'courses') {
                       setCoursesExpanded(!coursesExpanded);
+                    } else if (item.id === 'financial') {
+                      setFinancialExpanded(!financialExpanded);
                     } else if (item.id === 'my-folder' && (userRoleRaw === 'Cliente Externo' || userRoleRaw === 'Cliente')) {
                       // Se for "Minha Pasta" e Cliente Externo, navegar para a rota do cliente
                       if (clientId) {

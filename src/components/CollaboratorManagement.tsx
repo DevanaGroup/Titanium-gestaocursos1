@@ -248,12 +248,17 @@ export const CollaboratorManagement = () => {
     return hasPermission(userRole, 'view_own_data');
   };
 
-  const filteredCollaborators = collaborators.filter(collab => 
-    collab.firstName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    collab.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    collab.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    collab.hierarchyLevel.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Professores (Nível 6) só aparecem em /teachers; excluir da tabela de colaboradores
+  const filteredCollaborators = collaborators
+    .filter((collab) => collab.hierarchyLevel !== "Nível 6")
+    .filter(
+      (collab) =>
+        !searchTerm ||
+        collab.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        collab.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        collab.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (collab.hierarchyLevel && collab.hierarchyLevel.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;

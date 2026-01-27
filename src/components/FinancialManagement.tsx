@@ -50,8 +50,16 @@ import {
   Receipt,
   Settings,
   Save,
-  Building2
+  Building2,
+  Filter,
+  Search,
+  X
 } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { toast } from "sonner";
 import { FinancialClient, MonthlyBalance, BalanceExpense } from "@/types";
 import {
@@ -449,26 +457,81 @@ export const FinancialManagement = () => {
                     Todos os seus clientes com status financeiro integrado
                   </CardDescription>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
-                  <Input 
-                    placeholder="Buscar cliente..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full sm:w-64"
-                  />
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-full sm:w-40">
-                      <SelectValue placeholder="Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todos</SelectItem>
-                      <SelectItem value="Ativo">Ativo</SelectItem>
-                      <SelectItem value="Inativo">Inativo</SelectItem>
-                      <SelectItem value="Inadimplente">Inadimplente</SelectItem>
-                      <SelectItem value="Suspenso">Suspenso</SelectItem>
-                      <SelectItem value="Sem dados financeiros">Sem dados financeiros</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="flex flex-col lg:flex-row gap-3">
+                  {/* Campo de busca à esquerda */}
+                  <div className="relative flex-1">
+                    <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-muted-foreground/70 w-3.5 h-3.5 z-10" />
+                    <Input 
+                      placeholder="Buscar cliente..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-9 h-9 text-sm"
+                    />
+                  </div>
+
+                  {/* Botão de filtros à direita */}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={`h-9 px-3 gap-2 ${
+                          statusFilter !== "all"
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : ""
+                        }`}
+                      >
+                        <Filter className="h-4 w-4" />
+                        <span className="hidden sm:inline">Filtros</span>
+                        {statusFilter !== "all" && (
+                          <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                            1
+                          </Badge>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80 p-4" align="end">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-semibold text-sm">Filtros</h4>
+                          {statusFilter !== "all" && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setStatusFilter("all");
+                              }}
+                              className="h-7 px-2 text-xs"
+                            >
+                              <X className="h-3 w-3 mr-1" />
+                              Limpar
+                            </Button>
+                          )}
+                        </div>
+
+                        <div className="space-y-3">
+                          {/* Filtro de Status */}
+                          <div className="space-y-2">
+                            <Label htmlFor="filter-status" className="text-xs font-medium">
+                              Status
+                            </Label>
+                            <Select value={statusFilter} onValueChange={setStatusFilter}>
+                              <SelectTrigger id="filter-status" className="h-9">
+                                <SelectValue placeholder="Selecione o status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">Todos</SelectItem>
+                                <SelectItem value="Ativo">Ativo</SelectItem>
+                                <SelectItem value="Inativo">Inativo</SelectItem>
+                                <SelectItem value="Inadimplente">Inadimplente</SelectItem>
+                                <SelectItem value="Suspenso">Suspenso</SelectItem>
+                                <SelectItem value="Sem dados financeiros">Sem dados financeiros</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
             </CardHeader>

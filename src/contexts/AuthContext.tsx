@@ -37,9 +37,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           // Verificar se o email é válido para este projeto
           const userEmail = user.email || '';
           console.log('🔍 Verificando usuário logado:', userEmail);
-          
-          // Se o email contém "belgos" ou outros domínios não autorizados, fazer logout
-          if (userEmail.includes('belgos') || (userEmail && !userEmail.includes('@devana.com.br') && !userEmail.includes('@titanium') && !userEmail.includes('@cerrado'))) {
+
+          // Em produção: restringir a domínios autorizados. Em desenvolvimento: permitir qualquer email.
+          const isDev = import.meta.env.DEV;
+          const blockedDomain = userEmail.includes('belgos');
+          const allowedDomain = userEmail.includes('@devana.com.br') || userEmail.includes('@titanium') || userEmail.includes('@cerrado');
+          const unauthorized = blockedDomain || (!isDev && userEmail && !allowedDomain);
+
+          if (unauthorized) {
             console.warn('⚠️ Conta não autorizada detectada:', userEmail);
             console.log('🔓 Fazendo logout automático...');
             await auth.signOut();

@@ -88,10 +88,35 @@ const App = () => (
               } />
               <Route path="/expense-requests" element={
                 <ProtectedRoute>
+                  <Navigate to="/financial/expense-requests" replace />
+                </ProtectedRoute>
+              } />
+              <Route path="/financial/expense-requests" element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/financial/incomes" element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/financial/expenses" element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/financial/reports" element={
+                <ProtectedRoute>
                   <Dashboard />
                 </ProtectedRoute>
               } />
               <Route path="/calendar" element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/eventos" element={
                 <ProtectedRoute>
                   <Dashboard />
                 </ProtectedRoute>

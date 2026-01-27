@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -261,6 +261,10 @@ export const TeacherManagement = () => {
   const [birthDateInput, setBirthDateInput] = useState<string>("");
   const [editBirthDateInput, setEditBirthDateInput] = useState<string>("");
   
+  // Refs para os inputs de foto
+  const photoUploadRef = useRef<HTMLInputElement>(null);
+  const editPhotoUploadRef = useRef<HTMLInputElement>(null);
+  
   const [newTeacher, setNewTeacher] = useState({
     fullName: "",
     cpf: "",
@@ -374,27 +378,54 @@ export const TeacherManagement = () => {
   };
 
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>, isEdit: boolean = false) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     const file = e.target.files?.[0];
-    if (!file) return;
+    console.log('handlePhotoChange chamado:', { file, isEdit, hasFile: !!file });
+    
+    if (!file) {
+      console.log('Nenhum arquivo selecionado');
+      return;
+    }
+    
+    console.log('Arquivo selecionado:', {
+      name: file.name,
+      type: file.type,
+      size: file.size
+    });
     
     if (!file.type.startsWith('image/')) {
       toast.error('Por favor, selecione uma imagem');
+      const input = isEdit ? editPhotoUploadRef.current : photoUploadRef.current;
+      if (input) {
+        input.value = '';
+      }
       return;
     }
     
     if (file.size > 5 * 1024 * 1024) {
       toast.error('A imagem deve ter no máximo 5MB');
+      const input = isEdit ? editPhotoUploadRef.current : photoUploadRef.current;
+      if (input) {
+        input.value = '';
+      }
       return;
     }
     
     try {
       toast.loading('Processando imagem...');
+      console.log('Iniciando processamento da imagem...');
       const base64Image = await processImage(file);
       
+      console.log('Imagem processada com sucesso, tamanho base64:', base64Image.length);
+      
       if (isEdit && selectedTeacher) {
+        console.log('Atualizando foto do professor em edição');
         setEditPhotoPreview(base64Image);
         setSelectedTeacher({ ...selectedTeacher, photoURL: base64Image });
       } else {
+        console.log('Atualizando foto do novo professor');
         setPhotoPreview(base64Image);
         setNewTeacher({ ...newTeacher, photoURL: base64Image });
       }
@@ -405,10 +436,13 @@ export const TeacherManagement = () => {
       toast.dismiss();
       toast.error('Erro ao processar a imagem');
       console.error('Erro ao processar imagem:', error);
+    } finally {
+      // Limpar o input para permitir selecionar o mesmo arquivo novamente
+      const input = isEdit ? editPhotoUploadRef.current : photoUploadRef.current;
+      if (input) {
+        input.value = '';
+      }
     }
-    
-    // Limpar o input para permitir selecionar o mesmo arquivo novamente
-    e.target.value = '';
   };
 
   const handleAddTeacher = async () => {
@@ -643,6 +677,9 @@ export const TeacherManagement = () => {
       // Se não houver sobrenome, usar o primeiro nome como sobrenome também
       const lastName = nameParts.slice(1).join(' ') || firstName || 'Professor';
 
+      // Usar editPhotoPreview se existir, senão usar photoURL do selectedTeacher
+      const photoToSave = editPhotoPreview || selectedTeacher.photoURL || null;
+
       await updateDoc(doc(db, "users", selectedTeacher.uid), {
         firstName: firstName,
         lastName: lastName,
@@ -653,7 +690,7 @@ export const TeacherManagement = () => {
         cpf: selectedTeacher.cpf ? selectedTeacher.cpf.replace(/\D/g, '') : undefined,
         birthDate: selectedTeacher.birthDate ? serverTimestamp() : undefined,
         cro: selectedTeacher.cro,
-        photoURL: selectedTeacher.photoURL || null,
+        photoURL: photoToSave,
         address: selectedTeacher.address,
         availability: selectedTeacher.availability,
         updatedAt: serverTimestamp()
@@ -662,6 +699,7 @@ export const TeacherManagement = () => {
       toast.success("Professor atualizado com sucesso!");
       setIsEditDialogOpen(false);
       setSelectedTeacher(null);
+      setEditPhotoPreview(null);
       setEditBirthDate(undefined);
       setEditBirthDateInput("");
       
@@ -728,7 +766,7 @@ export const TeacherManagement = () => {
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader>
+        <CardHeader className="min-h-[120px] flex flex-col justify-center">
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2">
@@ -757,27 +795,34 @@ export const TeacherManagement = () => {
                   {/* Foto do Perfil */}
                   <div className="flex flex-col items-center gap-4">
                     <div className="relative">
-                      <Avatar className="h-24 w-24 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => document.getElementById('photo-upload')?.click()}>
-                        <AvatarImage src={photoPreview || undefined} />
-                        <AvatarFallback>
-                          <UserCircle className="h-12 w-12" />
-                        </AvatarFallback>
-                      </Avatar>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full"
-                        onClick={() => document.getElementById('photo-upload')?.click()}
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
+                      <label htmlFor="photo-upload" className="cursor-pointer">
+                        <Avatar className="h-24 w-24 hover:opacity-80 transition-opacity">
+                          <AvatarImage src={photoPreview || undefined} />
+                          <AvatarFallback>
+                            <UserCircle className="h-12 w-12" />
+                          </AvatarFallback>
+                        </Avatar>
+                      </label>
+                      <label htmlFor="photo-upload" className="cursor-pointer absolute -bottom-2 -right-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8 rounded-full pointer-events-none"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </label>
                       <input
+                        ref={photoUploadRef}
                         type="file"
                         id="photo-upload"
                         accept="image/*"
-                        className="hidden"
-                        onChange={(e) => handlePhotoChange(e, false)}
+                        style={{ display: 'none' }}
+                        onChange={(e) => {
+                          console.log('onChange disparado!', e.target.files);
+                          handlePhotoChange(e, false);
+                        }}
                       />
                     </div>
                     <p className="text-xs text-muted-foreground text-center">
@@ -1100,7 +1145,7 @@ export const TeacherManagement = () => {
             </Dialog>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="min-h-[480px]">
           <div className="mb-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -1122,7 +1167,7 @@ export const TeacherManagement = () => {
               {searchTerm ? "Nenhum professor encontrado" : "Nenhum professor cadastrado"}
             </div>
           ) : (
-            <div className="rounded-md border">
+            <div className="rounded-md border min-h-[400px]">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -1205,7 +1250,19 @@ export const TeacherManagement = () => {
       </Card>
 
       {/* Dialog de Edição */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+      <Dialog 
+        open={isEditDialogOpen} 
+        onOpenChange={(open) => {
+          setIsEditDialogOpen(open);
+          if (!open) {
+            // Limpar estados quando o diálogo é fechado
+            setEditPhotoPreview(null);
+            setSelectedTeacher(null);
+            setEditBirthDate(undefined);
+            setEditBirthDateInput("");
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar Professor</DialogTitle>
@@ -1218,27 +1275,34 @@ export const TeacherManagement = () => {
               {/* Foto do Perfil */}
               <div className="flex flex-col items-center gap-4">
                 <div className="relative">
-                  <Avatar className="h-24 w-24 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => document.getElementById('edit-photo-upload')?.click()}>
-                    <AvatarImage src={editPhotoPreview || selectedTeacher.photoURL || undefined} />
-                    <AvatarFallback>
-                      {getInitials(selectedTeacher.fullName || selectedTeacher.displayName || '')}
-                    </AvatarFallback>
-                  </Avatar>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full"
-                    onClick={() => document.getElementById('edit-photo-upload')?.click()}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
+                  <label htmlFor="edit-photo-upload" className="cursor-pointer">
+                    <Avatar className="h-24 w-24 hover:opacity-80 transition-opacity">
+                      <AvatarImage src={editPhotoPreview || selectedTeacher.photoURL || undefined} />
+                      <AvatarFallback>
+                        {getInitials(selectedTeacher.fullName || selectedTeacher.displayName || '')}
+                      </AvatarFallback>
+                    </Avatar>
+                  </label>
+                  <label htmlFor="edit-photo-upload" className="cursor-pointer absolute -bottom-2 -right-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8 rounded-full pointer-events-none"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                  </label>
                   <input
+                    ref={editPhotoUploadRef}
                     type="file"
                     id="edit-photo-upload"
                     accept="image/*"
-                    className="hidden"
-                    onChange={(e) => handlePhotoChange(e, true)}
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      console.log('onChange disparado!', e.target.files);
+                      handlePhotoChange(e, true);
+                    }}
                   />
                 </div>
                 <p className="text-xs text-muted-foreground text-center">
@@ -1544,7 +1608,16 @@ export const TeacherManagement = () => {
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setIsEditDialogOpen(false);
+                setEditPhotoPreview(null);
+                setSelectedTeacher(null);
+                setEditBirthDate(undefined);
+                setEditBirthDateInput("");
+              }}
+            >
               Cancelar
             </Button>
             <Button onClick={handleEditTeacher}>

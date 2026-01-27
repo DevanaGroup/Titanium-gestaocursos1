@@ -37,6 +37,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { 
   Plus, 
   Eye, 
@@ -637,7 +642,8 @@ export const ExpenseRequestManagement = () => {
             )}
 
             <div className="flex flex-col lg:flex-row gap-3">
-              <div className="relative w-full lg:w-48">
+              {/* Campo de busca à esquerda */}
+              <div className="relative flex-1">
                 <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-muted-foreground/70 w-3.5 h-3.5 z-10" />
                 <Input
                   placeholder="Buscar..."
@@ -647,80 +653,149 @@ export const ExpenseRequestManagement = () => {
                 />
               </div>
 
-              <div className="relative">
-                <Calendar className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-muted-foreground/70 w-3.5 h-3.5 pointer-events-none z-10" />
-                <Select value={monthFilter} onValueChange={setMonthFilter}>
-                  <SelectTrigger className="w-full lg:w-40 responsive-input pl-8 h-9">
-                    <SelectValue placeholder="Mês" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                    {getMonthOptions().map(option => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {/* Botão de filtros à direita */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={`h-9 px-3 gap-2 ${
+                      statusFilter !== "all" || 
+                      categoryFilter !== "all" || 
+                      urgencyFilter !== "all" || 
+                      monthFilter !== "all"
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : ""
+                    }`}
+                  >
+                    <Filter className="h-4 w-4" />
+                    <span className="hidden sm:inline">Filtros</span>
+                    {(statusFilter !== "all" || 
+                      categoryFilter !== "all" || 
+                      urgencyFilter !== "all" || 
+                      monthFilter !== "all") && (
+                      <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                        {[
+                          statusFilter !== "all" ? 1 : 0,
+                          categoryFilter !== "all" ? 1 : 0,
+                          urgencyFilter !== "all" ? 1 : 0,
+                          monthFilter !== "all" ? 1 : 0,
+                        ].reduce((a, b) => a + b, 0)}
+                      </Badge>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-4" align="end">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-semibold text-sm">Filtros</h4>
+                      {(statusFilter !== "all" || 
+                        categoryFilter !== "all" || 
+                        urgencyFilter !== "all" || 
+                        monthFilter !== "all") && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setStatusFilter("all");
+                            setCategoryFilter("all");
+                            setUrgencyFilter("all");
+                            setMonthFilter("all");
+                          }}
+                          className="h-7 px-2 text-xs"
+                        >
+                          <X className="h-3 w-3 mr-1" />
+                          Limpar
+                        </Button>
+                      )}
+                    </div>
 
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full lg:w-36 responsive-input h-9">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="Em análise">Pendente</SelectItem>
-                  <SelectItem value="Aprovado">Aprovado</SelectItem>
-                  <SelectItem value="Reprovado">Rejeitado</SelectItem>
-                  <SelectItem value="Cancelado">Cancelado</SelectItem>
-                </SelectContent>
-              </Select>
+                    <div className="space-y-3">
+                      {/* Filtro de Mês */}
+                      <div className="space-y-2">
+                        <Label htmlFor="filter-month" className="text-xs font-medium">
+                          Mês
+                        </Label>
+                        <Select value={monthFilter} onValueChange={setMonthFilter}>
+                          <SelectTrigger id="filter-month" className="h-9 pl-8">
+                            <Calendar className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                            <SelectValue placeholder="Selecione o mês" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Todos os meses</SelectItem>
+                            {getMonthOptions().map(option => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="w-full lg:w-32 responsive-input h-9">
-                  <SelectValue placeholder="Categoria" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas</SelectItem>
-                  <SelectItem value="Operacional">Operacional</SelectItem>
-                  <SelectItem value="Marketing">Marketing</SelectItem>
-                  <SelectItem value="Administrativo">Administrativo</SelectItem>
-                  <SelectItem value="Tecnologia">Tecnologia</SelectItem>
-                  <SelectItem value="Recursos Humanos">RH</SelectItem>
-                  <SelectItem value="Viagem">Viagem</SelectItem>
-                  <SelectItem value="Alimentação">Alimentação</SelectItem>
-                  <SelectItem value="Material">Material</SelectItem>
-                  <SelectItem value="Outros">Outros</SelectItem>
-                </SelectContent>
-              </Select>
+                      {/* Filtro de Status */}
+                      <div className="space-y-2">
+                        <Label htmlFor="filter-status" className="text-xs font-medium">
+                          Status
+                        </Label>
+                        <Select value={statusFilter} onValueChange={setStatusFilter}>
+                          <SelectTrigger id="filter-status" className="h-9">
+                            <SelectValue placeholder="Selecione o status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Todos</SelectItem>
+                            <SelectItem value="Em análise">Pendente</SelectItem>
+                            <SelectItem value="Aprovado">Aprovado</SelectItem>
+                            <SelectItem value="Reprovado">Rejeitado</SelectItem>
+                            <SelectItem value="Cancelado">Cancelado</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-              <Select value={urgencyFilter} onValueChange={setUrgencyFilter}>
-                <SelectTrigger className="w-full lg:w-28 responsive-input h-9">
-                  <SelectValue placeholder="Urgência" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas</SelectItem>
-                  <SelectItem value="Baixa">Baixa</SelectItem>
-                  <SelectItem value="Média">Média</SelectItem>
-                  <SelectItem value="Alta">Alta</SelectItem>
-                  <SelectItem value="Urgente">Urgente</SelectItem>
-                </SelectContent>
-              </Select>
+                      {/* Filtro de Categoria */}
+                      <div className="space-y-2">
+                        <Label htmlFor="filter-category" className="text-xs font-medium">
+                          Categoria
+                        </Label>
+                        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                          <SelectTrigger id="filter-category" className="h-9">
+                            <SelectValue placeholder="Selecione a categoria" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Todas</SelectItem>
+                            <SelectItem value="Operacional">Operacional</SelectItem>
+                            <SelectItem value="Marketing">Marketing</SelectItem>
+                            <SelectItem value="Administrativo">Administrativo</SelectItem>
+                            <SelectItem value="Tecnologia">Tecnologia</SelectItem>
+                            <SelectItem value="Recursos Humanos">RH</SelectItem>
+                            <SelectItem value="Viagem">Viagem</SelectItem>
+                            <SelectItem value="Alimentação">Alimentação</SelectItem>
+                            <SelectItem value="Material">Material</SelectItem>
+                            <SelectItem value="Outros">Outros</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setSearchTerm("");
-                  setStatusFilter("all");
-                  setCategoryFilter("all");
-                  setUrgencyFilter("all");
-                  setMonthFilter("all");
-                }}
-                className="lg:w-auto responsive-button h-9 px-3"
-              >
-                <X className="h-3.5 w-3.5" />
-              </Button>
+                      {/* Filtro de Urgência */}
+                      <div className="space-y-2">
+                        <Label htmlFor="filter-urgency" className="text-xs font-medium">
+                          Urgência
+                        </Label>
+                        <Select value={urgencyFilter} onValueChange={setUrgencyFilter}>
+                          <SelectTrigger id="filter-urgency" className="h-9">
+                            <SelectValue placeholder="Selecione a urgência" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Todas</SelectItem>
+                            <SelectItem value="Baixa">Baixa</SelectItem>
+                            <SelectItem value="Média">Média</SelectItem>
+                            <SelectItem value="Alta">Alta</SelectItem>
+                            <SelectItem value="Urgente">Urgente</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
 
