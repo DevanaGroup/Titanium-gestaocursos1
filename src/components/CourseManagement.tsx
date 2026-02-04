@@ -19,12 +19,13 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { Search, Edit, Trash2, Plus, GraduationCap } from "lucide-react";
+import { Search, Edit, Trash2, Plus, GraduationCap, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { db } from "@/config/firebase";
 import { collection, getDocs, addDoc, deleteDoc, doc, serverTimestamp, setDoc, query, orderBy } from "firebase/firestore";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
+import { useNavigate } from "react-router-dom";
 
 interface Course {
   id: string;
@@ -39,6 +40,7 @@ interface Course {
 }
 
 export const CourseManagement = () => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -304,6 +306,14 @@ export const CourseManagement = () => {
                     <TableCell className="text-center">{getStatusBadge(course.status)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => navigate(`/courses/${course.id}`)}
+                          title="Ver detalhes"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"

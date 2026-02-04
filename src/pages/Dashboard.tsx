@@ -33,6 +33,7 @@ import { ExpenseRequestManagement } from "@/components/ExpenseRequestManagement"
 import { FinancialIncomes } from "@/components/FinancialIncomes";
 import { FinancialExpenses } from "@/components/FinancialExpenses";
 import { FinancialReports } from "@/components/FinancialReports";
+import { TeacherPaymentsModule } from "@/components/financial/TeacherPaymentsModule";
 import Presets from "./Presets";
 import Projects from "./Projects";
 import ProjectWrite from "./ProjectWrite";
@@ -65,7 +66,7 @@ const Dashboard = () => {
   const location = useLocation();
   // REMOVIDO: const { rightAction } = useHeaderActions();
   const isMobile = useIsMobile();
-  const [activeTab, setActiveTab] = useState<"home" | "collaborators" | "clients" | "calendar" | "eventos" | "tasks" | "tasks-archived" | "chatbot" | "expense-requests" | "financial-incomes" | "financial-expenses" | "financial-reports" | "support-web" | "settings" | "presets" | "projetos" | "project-write" | "project-view" | "project-map" | "courses" | "lessons" | "teachers">("home");
+  const [activeTab, setActiveTab] = useState<"home" | "collaborators" | "clients" | "calendar" | "eventos" | "tasks" | "tasks-archived" | "chatbot" | "expense-requests" | "financial-incomes" | "financial-expenses" | "financial-teacher-payments" | "financial-reports" | "support-web" | "settings" | "presets" | "projetos" | "project-write" | "project-view" | "project-map" | "courses" | "lessons" | "teachers">("home");
   const [avatarUrl, setAvatarUrl] = useState("/placeholder.svg");
   const [isAvatarDialogOpen, setIsAvatarDialogOpen] = useState(false);
   const [userData, setUserData] = useState<UserData>({
@@ -128,6 +129,8 @@ const Dashboard = () => {
       setActiveTab('financial-incomes');
     } else if (location.pathname === '/financial/expenses') {
       setActiveTab('financial-expenses');
+    } else if (location.pathname === '/financial/teacher-payments') {
+      setActiveTab('financial-teacher-payments');
     } else if (location.pathname === '/financial/reports') {
       setActiveTab('financial-reports');
     } else if (location.pathname.startsWith('/financial')) {
@@ -686,6 +689,23 @@ const Dashboard = () => {
                     <h2 className="text-2xl font-semibold text-yellow-800 mb-4">Acesso Restrito</h2>
                     <p className="text-yellow-700 mb-6">
                       O módulo de Saídas Financeiras está disponível apenas para Nível 1, 2 e 3.
+                    </p>
+                    <p className="text-sm text-yellow-600">
+                      Entre em contato com seu superior hierárquico para solicitar acesso.
+                    </p>
+                  </div>
+                </div>
+              )
+            )}
+            {activeTab === "financial-teacher-payments" && (
+              hasFinancialAccess(userData.role as HierarchyLevel) ? (
+                <TeacherPaymentsModule />
+              ) : (
+                <div className="h-full flex items-center justify-center flex-col">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-8 text-center max-w-md">
+                    <h2 className="text-2xl font-semibold text-yellow-800 mb-4">Acesso Restrito</h2>
+                    <p className="text-yellow-700 mb-6">
+                      O módulo de Pagamentos a Professores está disponível apenas para Nível 1, 2 e 3.
                     </p>
                     <p className="text-sm text-yellow-600">
                       Entre em contato com seu superior hierárquico para solicitar acesso.

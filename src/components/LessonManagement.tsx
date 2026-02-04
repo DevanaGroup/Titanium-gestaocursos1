@@ -23,7 +23,7 @@ import { Search, Edit, Trash2, Plus, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { db } from "@/config/firebase";
-import { collection, getDocs, addDoc, deleteDoc, doc, serverTimestamp, setDoc, query, orderBy, getDoc } from "firebase/firestore";
+import { collection, getDocs, addDoc, deleteDoc, doc, serverTimestamp, setDoc, query, orderBy, getDoc, where } from "firebase/firestore";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import {
   Select,
@@ -52,6 +52,8 @@ interface Lesson {
   locationAddress: string;
   needsProfessor: string; // "Sim" | "Não" | "Outro"
   professorName?: string; // se needsProfessor for "Não" ou "Outro"
+  professorId?: string; // ID do professor (users.uid)
+  professorPaymentValue?: number; // Valor a pagar pelo professor nesta aula
   numberOfStudents: string;
   lessonDuration: string; // "4 horas" | "8 horas" | "Outro"
   customDuration?: string; // se lessonDuration for "Outro"
@@ -89,6 +91,13 @@ interface Course {
   title: string;
 }
 
+interface TeacherOption {
+  id: string;
+  uid: string;
+  fullName: string;
+  defaultPaymentValue?: number;
+}
+
 export const LessonManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -100,6 +109,7 @@ export const LessonManagement = () => {
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [selectedLessonForDeletion, setSelectedLessonForDeletion] = useState<string | null>(null);
   
+  const [teachers, setTeachers] = useState<TeacherOption[]>([]);
   const [newLesson, setNewLesson] = useState<Omit<Lesson, 'id' | 'createdAt' | 'updatedAt'>>({
     email: "",
     requesterName: "",
@@ -114,6 +124,8 @@ export const LessonManagement = () => {
     locationAddress: "",
     needsProfessor: "",
     professorName: "",
+    professorId: "",
+    professorPaymentValue: undefined,
     numberOfStudents: "",
     lessonDuration: "",
     customDuration: "",
@@ -135,14 +147,16 @@ export const LessonManagement = () => {
     "Zigomático"
   ];
 
-  // Opções de modelos de implante
-  const implantModelOptions = [
+  // Opções de modelos de implante por tema
+  const implantModelOptionsFaseCirurgica = [
     "e-fix (Groove e Silver)",
     "e-fix (Profile)",
     "i-fix",
     "b-fix (cilindrico)",
     "b-fix (Profile)"
   ];
+  const implantModelOptionsCirurgiaGuiada = ["b-fix (Profile)"];
+  const implantModelOptionsZigomatico = ["Profile", "Flat"];
 
   // Opções de países com código
   const countryOptions = [
@@ -173,37 +187,27 @@ export const LessonManagement = () => {
     setNewLesson(prev => ({ ...prev, courseResponsiblePhone: formatted }));
   };
 
-  // Função para calcular materiais automaticamente
+  // Função para calcular materiais automaticamente (apenas Fase Cirúrgica)
   const calculateMaterials = useCallback(() => {
-    if (newLesson.hasHandsOn !== "Sim" || !newLesson.lessonTheme || !newLesson.implantModels || newLesson.implantModels.length === 0) {
+    if (
+      newLesson.hasHandsOn !== "Sim" ||
+      newLesson.lessonTheme !== "Fase Cirúrgica" ||
+      !newLesson.implantModels ||
+      newLesson.implantModels.length === 0
+    ) {
       return undefined;
     }
 
     const numberOfStudents = parseInt(newLesson.numberOfStudents) || 0;
     const implantModels = newLesson.implantModels;
-    
-    // Regra: 1 maxila por aluno
+
     const maxillasPerStudent = 1;
-    
-    // Regra: 2 a 4 implantes por aluno (dependendo dos modelos selecionados)
-    // Se o curso utilizar apenas Profile, serão enviados 2 implantes por aluno
-    // Caso contrário, 1 implante de cada modelo selecionado (mínimo 2, máximo 4)
-    const hasOnlyProfile = implantModels.length === 1 && 
+    const hasOnlyProfile =
+      implantModels.length === 1 &&
       (implantModels[0] === "e-fix (Profile)" || implantModels[0] === "b-fix (Profile)");
-    
-    // Se apenas Profile: 2 implantes por aluno
-    // Caso contrário: quantidade de modelos selecionados (limitado entre 2 e 4)
-    let implantsPerStudent;
-    if (hasOnlyProfile) {
-      implantsPerStudent = 2;
-    } else {
-      // Se selecionou 1 modelo (não Profile): mínimo 2 implantes
-      // Se selecionou 2-4 modelos: 1 implante de cada (2 a 4 implantes)
-      // Se selecionou mais de 4 modelos: limitar a 4 implantes
-      implantsPerStudent = Math.min(Math.max(implantModels.length, 2), 4);
-    }
-    
-    // Regra: 1 motor por dupla (1 motor para cada 2 alunos)
+    const implantsPerStudent = hasOnlyProfile
+      ? 2
+      : Math.min(Math.max(implantModels.length, 2), 4);
     const motorsNeeded = Math.ceil(numberOfStudents / 2);
     const surgicalKitsPerMotor = 1;
 
@@ -219,6 +223,17 @@ export const LessonManagement = () => {
     };
   }, [newLesson.hasHandsOn, newLesson.lessonTheme, newLesson.implantModels, newLesson.numberOfStudents]);
 
+  // Handler para troca de tema (limpa implantModels ao mudar; Zigomático vem com Profile e Flat pré-selecionados)
+  const handleThemeChange = (theme: string, prefix = "") => {
+    setNewLesson((prev) => {
+      const next = { ...prev, lessonTheme: theme, implantModels: [] as string[] };
+      if (theme === "Zigomático") {
+        next.implantModels = ["Profile", "Flat"];
+      }
+      return next;
+    });
+  };
+
   // Atualizar materiais calculados quando campos relevantes mudarem
   useEffect(() => {
     const materials = calculateMaterials();
@@ -232,7 +247,29 @@ export const LessonManagement = () => {
   useEffect(() => {
     fetchCourses();
     fetchLessons();
+    fetchTeachers();
   }, []);
+
+  const fetchTeachers = async () => {
+    try {
+      const usersCollection = collection(db, "users");
+      const teachersQuery = query(usersCollection, where("hierarchyLevel", "==", "Nível 6"));
+      const teachersSnapshot = await getDocs(teachersQuery);
+      const teachersList: TeacherOption[] = teachersSnapshot.docs.map((d) => {
+        const data = d.data();
+        const fullName = data.fullName || data.displayName || `${data.firstName || ""} ${data.lastName || ""}`.trim();
+        return {
+          id: d.id,
+          uid: data.uid || d.id,
+          fullName: fullName || "Professor",
+          defaultPaymentValue: data.paymentData?.defaultValue ?? undefined
+        };
+      });
+      setTeachers(teachersList);
+    } catch (error) {
+      console.error("Erro ao buscar professores:", error);
+    }
+  };
 
   const fetchCourses = async () => {
     try {
@@ -291,6 +328,8 @@ export const LessonManagement = () => {
           locationAddress: data.locationAddress || "",
           needsProfessor: data.needsProfessor || "",
           professorName: data.professorName || "",
+          professorId: data.professorId || "",
+          professorPaymentValue: data.professorPaymentValue ?? undefined,
           numberOfStudents: data.numberOfStudents || "",
           lessonDuration: data.lessonDuration || "",
           customDuration: data.customDuration || "",
@@ -400,8 +439,12 @@ export const LessonManagement = () => {
         toast.error("É necessário selecionar o tema da aula quando hands-on está marcado");
         return;
       }
-      if (!newLesson.implantModels || newLesson.implantModels.length === 0) {
-        toast.error("É necessário selecionar pelo menos um modelo de implante quando hands-on está marcado");
+      const themesRequiringImplant = ["Fase Cirúrgica", "Cirurgia Guiada", "Zigomático"];
+      if (
+        themesRequiringImplant.includes(newLesson.lessonTheme) &&
+        (!newLesson.implantModels || newLesson.implantModels.length === 0)
+      ) {
+        toast.error("É necessário selecionar pelo menos um modelo de implante para este tema");
         return;
       }
     }
@@ -434,6 +477,8 @@ export const LessonManagement = () => {
         locationAddress: "",
         needsProfessor: "",
         professorName: "",
+        professorId: "",
+        professorPaymentValue: undefined,
         numberOfStudents: "",
         lessonDuration: "",
         customDuration: "",
@@ -521,8 +566,12 @@ export const LessonManagement = () => {
         toast.error("É necessário selecionar o tema da aula quando hands-on está marcado");
         return;
       }
-      if (!newLesson.implantModels || newLesson.implantModels.length === 0) {
-        toast.error("É necessário selecionar pelo menos um modelo de implante quando hands-on está marcado");
+      const themesRequiringImplant = ["Fase Cirúrgica", "Cirurgia Guiada", "Zigomático"];
+      if (
+        themesRequiringImplant.includes(newLesson.lessonTheme) &&
+        (!newLesson.implantModels || newLesson.implantModels.length === 0)
+      ) {
+        toast.error("É necessário selecionar pelo menos um modelo de implante para este tema");
         return;
       }
     }
@@ -555,6 +604,8 @@ export const LessonManagement = () => {
         locationAddress: "",
         needsProfessor: "",
         professorName: "",
+        professorId: "",
+        professorPaymentValue: undefined,
         numberOfStudents: "",
         lessonDuration: "",
         customDuration: "",
@@ -604,6 +655,8 @@ export const LessonManagement = () => {
       locationAddress: lesson.locationAddress || "",
       needsProfessor: lesson.needsProfessor || "",
       professorName: lesson.professorName || "",
+      professorId: lesson.professorId || "",
+      professorPaymentValue: lesson.professorPaymentValue ?? undefined,
       numberOfStudents: lesson.numberOfStudents || "",
       lessonDuration: lesson.lessonDuration || "",
       customDuration: lesson.customDuration || "",
@@ -924,7 +977,11 @@ export const LessonManagement = () => {
               <Label>Será necessário solicitar professor para essa aula? Responder sim ou não. Se não, indicar o professor que irá ministrar a aula. <span className="text-red-500">*</span></Label>
               <RadioGroup 
                 value={newLesson.needsProfessor} 
-                onValueChange={(value) => setNewLesson(prev => ({ ...prev, needsProfessor: value }))}
+                onValueChange={(value) => setNewLesson(prev => ({ 
+                  ...prev, 
+                  needsProfessor: value,
+                  ...(value !== "Não" && value !== "Outro" ? { professorId: "", professorName: "", professorPaymentValue: undefined } : {})
+                }))}
               >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="Sim" id="needsProfessor-sim" />
@@ -940,13 +997,48 @@ export const LessonManagement = () => {
                 </div>
               </RadioGroup>
               {(newLesson.needsProfessor === "Não" || newLesson.needsProfessor === "Outro") && (
-                <Input
-                  name="professorName"
-                  value={newLesson.professorName}
-                  onChange={handleInputChange}
-                  placeholder="Nome do professor"
-                  className="mt-2"
-                />
+                <div className="mt-2 space-y-2">
+                  <Select
+                    value={newLesson.professorId || ""}
+                    onValueChange={(value) => {
+                      const teacher = teachers.find(t => t.uid === value || t.id === value);
+                      setNewLesson(prev => ({
+                        ...prev,
+                        professorId: value,
+                        professorName: teacher?.fullName || "",
+                        professorPaymentValue: teacher?.defaultPaymentValue ?? prev.professorPaymentValue ?? 0
+                      }));
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o professor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {teachers.map((t) => (
+                        <SelectItem key={t.id} value={t.uid}>
+                          {t.fullName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {newLesson.professorId && (
+                    <div className="grid gap-2">
+                      <Label htmlFor="professorPaymentValue">Valor a pagar ao professor (R$)</Label>
+                      <Input
+                        id="professorPaymentValue"
+                        type="number"
+                        placeholder="0,00"
+                        min={0}
+                        step={0.01}
+                        value={newLesson.professorPaymentValue ?? ""}
+                        onChange={(e) => setNewLesson(prev => ({
+                          ...prev,
+                          professorPaymentValue: parseFloat(e.target.value) || undefined
+                        }))}
+                      />
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 
@@ -1045,14 +1137,14 @@ export const LessonManagement = () => {
                 {/* Tema da Aula */}
                 <div className="space-y-2">
                   <Label>Qual o tema da Aula? <span className="text-red-500">*</span></Label>
-                  <RadioGroup 
-                    value={newLesson.lessonTheme || ""} 
-                    onValueChange={(value) => setNewLesson(prev => ({ ...prev, lessonTheme: value }))}
+                  <RadioGroup
+                    value={newLesson.lessonTheme || ""}
+                    onValueChange={handleThemeChange}
                   >
                     {lessonThemes.map((theme) => (
                       <div key={theme} className="flex items-center space-x-2">
-                        <RadioGroupItem value={theme} id={`theme-${theme.replace(/\s+/g, '-')}`} />
-                        <Label htmlFor={`theme-${theme.replace(/\s+/g, '-')}`} className="cursor-pointer">
+                        <RadioGroupItem value={theme} id={`theme-${theme.replace(/\s+/g, "-")}`} />
+                        <Label htmlFor={`theme-${theme.replace(/\s+/g, "-")}`} className="cursor-pointer">
                           {theme}
                         </Label>
                       </div>
@@ -1060,66 +1152,158 @@ export const LessonManagement = () => {
                   </RadioGroup>
                 </div>
 
-                {/* Modelos de Implante */}
-                {newLesson.lessonTheme && (
+                {/* Conteúdo condicional por tema */}
+                {newLesson.lessonTheme === "Fase Cirúrgica" && (
                   <div className="space-y-2">
                     <Label>Favor selecionar quais modelos de implante serão utilizados no curso: <span className="text-red-500">*</span></Label>
                     <div className="space-y-2">
-                      {implantModelOptions.map((model) => (
+                      {implantModelOptionsFaseCirurgica.map((model) => (
                         <div key={model} className="flex items-center space-x-2">
                           <Checkbox
-                            id={`implant-${model.replace(/\s+/g, '-')}`}
+                            id={`implant-${model.replace(/\s+/g, "-")}`}
                             checked={newLesson.implantModels?.includes(model) || false}
                             onCheckedChange={(checked) => {
-                              setNewLesson(prev => {
+                              setNewLesson((prev) => {
                                 const currentModels = prev.implantModels || [];
-                                if (checked) {
-                                  return { ...prev, implantModels: [...currentModels, model] };
-                                } else {
-                                  return { ...prev, implantModels: currentModels.filter(m => m !== model) };
-                                }
+                                if (checked) return { ...prev, implantModels: [...currentModels, model] };
+                                return { ...prev, implantModels: currentModels.filter((m) => m !== model) };
                               });
                             }}
                           />
-                          <Label htmlFor={`implant-${model.replace(/\s+/g, '-')}`} className="cursor-pointer">
-                            {model}
-                          </Label>
+                          <Label htmlFor={`implant-${model.replace(/\s+/g, "-")}`} className="cursor-pointer">{model}</Label>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {/* Materiais Calculados */}
-                {newLesson.calculatedMaterials && newLesson.numberOfStudents && parseInt(newLesson.numberOfStudents) > 0 && (
+                {newLesson.lessonTheme === "Fluxo Protético" && (
+                  <div className="p-4 bg-white dark:bg-gray-900 rounded-lg border">
+                    <p className="text-sm">Será enviado um macro modelo do nosso sistema.</p>
+                  </div>
+                )}
+
+                {newLesson.lessonTheme === "Cirurgia Guiada" && (
+                  <div className="space-y-4">
+                    <div className="bg-red-500 text-white font-bold py-2 px-4 rounded-t-lg">
+                      Orientações para Hands-on de Cirurgia Guiada
+                    </div>
+                    <div className="p-4 bg-white dark:bg-gray-900 rounded-lg border space-y-2 text-sm">
+                      <p>
+                        Cada aluno (ou o curso) deve arcar com o preço de custo do modelo (mandíbula edêntula Nacional Ossos) e das guias cirúrgicas*. A Titaniumfix fornece os implantes (4 por aluno de acordo com a preferência do professor que irá ministrar a aula).
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        *Há a possibilidade do curso solicitante fazer parceria com um planning center local para redução do custo de produção das guias (parceiros locais costumam doar as guias para captação de clientes), neste caso as anilhas são bonificadas pela Titaniumfix.
+                      </p>
+                    </div>
+                    <div className="p-4 bg-white dark:bg-gray-900 rounded-lg border space-y-2">
+                      <Label className="font-semibold">Favor selecionar quais modelos de implante serão utilizados no curso:</Label>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="implant-cirurgia-bfix-profile"
+                          checked={newLesson.implantModels?.includes("b-fix (Profile)") || false}
+                          onCheckedChange={(checked) => {
+                            setNewLesson((prev) =>
+                              checked
+                                ? { ...prev, implantModels: ["b-fix (Profile)"] }
+                                : { ...prev, implantModels: [] }
+                            );
+                          }}
+                        />
+                        <Label htmlFor="implant-cirurgia-bfix-profile" className="cursor-pointer">b-fix (Profile)</Label>
+                      </div>
+                    </div>
+                    <div className="p-4 bg-white dark:bg-gray-900 rounded-lg border">
+                      <p className="font-semibold text-sm">Os materiais contra-ângulo e motor de implante são responsabilidade do curso/alunos!</p>
+                    </div>
+                  </div>
+                )}
+
+                {newLesson.lessonTheme === "Digital-Fix: Solução Protética do Analógico ao Digital" && (
+                  <div className="p-4 bg-white dark:bg-gray-900 rounded-lg border">
+                    {/* Opções em definição */}
+                  </div>
+                )}
+
+                {newLesson.lessonTheme === "Zigomático" && (
+                  <div className="space-y-4">
+                    <div className="bg-red-500 text-white font-bold py-2 px-4 rounded-t-lg uppercase">
+                      Hands-on Zigomático
+                    </div>
+                    <div className="p-4 bg-white dark:bg-gray-900 rounded-lg border space-y-2 text-sm">
+                      <p className="font-medium">Os materiais enviados pela Titaniumfix para essa atividade serão:</p>
+                      <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                        <li>1 crânio por aluno (cobrado o valor de R$ 147,00 por aluno)</li>
+                        <li>1 implante de cada modelo utilizado pelo curso (profile ou Flat)</li>
+                        <li>1 kit cirúrgico para cada motor disponível no curso.</li>
+                      </ul>
+                    </div>
+                    <div className="p-4 bg-white dark:bg-gray-900 rounded-lg border space-y-2">
+                      <Label>Favor selecionar quais modelos de implante serão utilizados no curso: <span className="text-red-500">*</span></Label>
+                      <div className="space-y-2">
+                        {implantModelOptionsZigomatico.map((model) => (
+                          <div key={model} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`implant-zig-${model}`}
+                              checked={newLesson.implantModels?.includes(model) || false}
+                              onCheckedChange={(checked) => {
+                                setNewLesson((prev) => {
+                                  const currentModels = prev.implantModels || [];
+                                  if (checked) return { ...prev, implantModels: [...currentModels, model] };
+                                  return { ...prev, implantModels: currentModels.filter((m) => m !== model) };
+                                });
+                              }}
+                            />
+                            <Label htmlFor={`implant-zig-${model}`} className="cursor-pointer">{model}</Label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Materiais Calculados - Fase Cirúrgica */}
+                {newLesson.lessonTheme === "Fase Cirúrgica" && newLesson.calculatedMaterials && (
                   <div className="mt-4 p-4 bg-white dark:bg-gray-900 rounded-lg border">
                     <div className="font-semibold mb-3">Materiais Calculados Automaticamente:</div>
                     <div className="space-y-2 text-sm">
                       <div>
-                        <span className="font-medium">Maxilas:</span> {newLesson.calculatedMaterials.totalMaxillas} unidades 
+                        <span className="font-medium">Maxilas:</span>
                         <span className="text-gray-600 dark:text-gray-400 ml-2">
-                          ({newLesson.calculatedMaterials.maxillasPerStudent} por aluno × {newLesson.numberOfStudents} alunos)
+                          {newLesson.calculatedMaterials.maxillasPerStudent} por aluno
+                          {newLesson.numberOfStudents && parseInt(newLesson.numberOfStudents) > 0 && (
+                            <> = {newLesson.calculatedMaterials.totalMaxillas} unidades ({newLesson.numberOfStudents} alunos)</>
+                          )}
                         </span>
                       </div>
                       <div>
-                        <span className="font-medium">Implantes:</span> {newLesson.calculatedMaterials.totalImplants} unidades 
+                        <span className="font-medium">Implantes:</span>
                         <span className="text-gray-600 dark:text-gray-400 ml-2">
-                          ({newLesson.calculatedMaterials.implantsPerStudent} por aluno × {newLesson.numberOfStudents} alunos)
+                          {newLesson.calculatedMaterials.implantsPerStudent} por aluno
+                          {newLesson.numberOfStudents && parseInt(newLesson.numberOfStudents) > 0 && (
+                            <> = {newLesson.calculatedMaterials.totalImplants} unidades ({newLesson.numberOfStudents} alunos)</>
+                          )}
                         </span>
                         <div className="text-xs text-gray-500 dark:text-gray-500 mt-1 ml-4">
                           Tipos: {newLesson.calculatedMaterials.implantTypes.join(", ")}
                         </div>
                       </div>
                       <div>
-                        <span className="font-medium">Motores:</span> {newLesson.calculatedMaterials.motorsNeeded} unidades 
+                        <span className="font-medium">Motores:</span>
                         <span className="text-gray-600 dark:text-gray-400 ml-2">
                           (1 motor por dupla)
+                          {newLesson.numberOfStudents && parseInt(newLesson.numberOfStudents) > 0 && (
+                            <> = {newLesson.calculatedMaterials.motorsNeeded} unidades</>
+                          )}
                         </span>
                       </div>
                       <div>
-                        <span className="font-medium">Kits cirúrgicos:</span> {newLesson.calculatedMaterials.totalSurgicalKits} unidades 
+                        <span className="font-medium">Kits cirúrgicos:</span>
                         <span className="text-gray-600 dark:text-gray-400 ml-2">
                           (1 kit por motor)
+                          {newLesson.numberOfStudents && parseInt(newLesson.numberOfStudents) > 0 && (
+                            <> = {newLesson.calculatedMaterials.totalSurgicalKits} unidades</>
+                          )}
                         </span>
                       </div>
                     </div>
@@ -1329,7 +1513,11 @@ export const LessonManagement = () => {
               <Label>Será necessário solicitar professor para essa aula? Responder sim ou não. Se não, indicar o professor que irá ministrar a aula. <span className="text-red-500">*</span></Label>
               <RadioGroup 
                 value={newLesson.needsProfessor} 
-                onValueChange={(value) => setNewLesson(prev => ({ ...prev, needsProfessor: value }))}
+                onValueChange={(value) => setNewLesson(prev => ({ 
+                  ...prev, 
+                  needsProfessor: value,
+                  ...(value !== "Não" && value !== "Outro" ? { professorId: "", professorName: "", professorPaymentValue: undefined } : {})
+                }))}
               >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="Sim" id="edit-needsProfessor-sim" />
@@ -1345,13 +1533,48 @@ export const LessonManagement = () => {
                 </div>
               </RadioGroup>
               {(newLesson.needsProfessor === "Não" || newLesson.needsProfessor === "Outro") && (
-                <Input
-                  name="professorName"
-                  value={newLesson.professorName}
-                  onChange={handleInputChange}
-                  placeholder="Nome do professor"
-                  className="mt-2"
-                />
+                <div className="mt-2 space-y-2">
+                  <Select
+                    value={newLesson.professorId || ""}
+                    onValueChange={(value) => {
+                      const teacher = teachers.find(t => t.uid === value || t.id === value);
+                      setNewLesson(prev => ({
+                        ...prev,
+                        professorId: value,
+                        professorName: teacher?.fullName || "",
+                        professorPaymentValue: teacher?.defaultPaymentValue ?? prev.professorPaymentValue ?? 0
+                      }));
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o professor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {teachers.map((t) => (
+                        <SelectItem key={t.id} value={t.uid}>
+                          {t.fullName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {newLesson.professorId && (
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit-professorPaymentValue">Valor a pagar ao professor (R$)</Label>
+                      <Input
+                        id="edit-professorPaymentValue"
+                        type="number"
+                        placeholder="0,00"
+                        min={0}
+                        step={0.01}
+                        value={newLesson.professorPaymentValue ?? ""}
+                        onChange={(e) => setNewLesson(prev => ({
+                          ...prev,
+                          professorPaymentValue: parseFloat(e.target.value) || undefined
+                        }))}
+                      />
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 
@@ -1450,14 +1673,14 @@ export const LessonManagement = () => {
                 {/* Tema da Aula */}
                 <div className="space-y-2">
                   <Label>Qual o tema da Aula? <span className="text-red-500">*</span></Label>
-                  <RadioGroup 
-                    value={newLesson.lessonTheme || ""} 
-                    onValueChange={(value) => setNewLesson(prev => ({ ...prev, lessonTheme: value }))}
+                  <RadioGroup
+                    value={newLesson.lessonTheme || ""}
+                    onValueChange={handleThemeChange}
                   >
                     {lessonThemes.map((theme) => (
                       <div key={theme} className="flex items-center space-x-2">
-                        <RadioGroupItem value={theme} id={`edit-theme-${theme.replace(/\s+/g, '-')}`} />
-                        <Label htmlFor={`edit-theme-${theme.replace(/\s+/g, '-')}`} className="cursor-pointer">
+                        <RadioGroupItem value={theme} id={`edit-theme-${theme.replace(/\s+/g, "-")}`} />
+                        <Label htmlFor={`edit-theme-${theme.replace(/\s+/g, "-")}`} className="cursor-pointer">
                           {theme}
                         </Label>
                       </div>
@@ -1465,66 +1688,156 @@ export const LessonManagement = () => {
                   </RadioGroup>
                 </div>
 
-                {/* Modelos de Implante */}
-                {newLesson.lessonTheme && (
+                {/* Conteúdo condicional por tema */}
+                {newLesson.lessonTheme === "Fase Cirúrgica" && (
                   <div className="space-y-2">
                     <Label>Favor selecionar quais modelos de implante serão utilizados no curso: <span className="text-red-500">*</span></Label>
                     <div className="space-y-2">
-                      {implantModelOptions.map((model) => (
+                      {implantModelOptionsFaseCirurgica.map((model) => (
                         <div key={model} className="flex items-center space-x-2">
                           <Checkbox
-                            id={`edit-implant-${model.replace(/\s+/g, '-')}`}
+                            id={`edit-implant-${model.replace(/\s+/g, "-")}`}
                             checked={newLesson.implantModels?.includes(model) || false}
                             onCheckedChange={(checked) => {
-                              setNewLesson(prev => {
+                              setNewLesson((prev) => {
                                 const currentModels = prev.implantModels || [];
-                                if (checked) {
-                                  return { ...prev, implantModels: [...currentModels, model] };
-                                } else {
-                                  return { ...prev, implantModels: currentModels.filter(m => m !== model) };
-                                }
+                                if (checked) return { ...prev, implantModels: [...currentModels, model] };
+                                return { ...prev, implantModels: currentModels.filter((m) => m !== model) };
                               });
                             }}
                           />
-                          <Label htmlFor={`edit-implant-${model.replace(/\s+/g, '-')}`} className="cursor-pointer">
-                            {model}
-                          </Label>
+                          <Label htmlFor={`edit-implant-${model.replace(/\s+/g, "-")}`} className="cursor-pointer">{model}</Label>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {/* Materiais Calculados */}
-                {newLesson.calculatedMaterials && newLesson.numberOfStudents && parseInt(newLesson.numberOfStudents) > 0 && (
+                {newLesson.lessonTheme === "Fluxo Protético" && (
+                  <div className="p-4 bg-white dark:bg-gray-900 rounded-lg border">
+                    <p className="text-sm">Será enviado um macro modelo do nosso sistema.</p>
+                  </div>
+                )}
+
+                {newLesson.lessonTheme === "Cirurgia Guiada" && (
+                  <div className="space-y-4">
+                    <div className="bg-red-500 text-white font-bold py-2 px-4 rounded-t-lg">
+                      Orientações para Hands-on de Cirurgia Guiada
+                    </div>
+                    <div className="p-4 bg-white dark:bg-gray-900 rounded-lg border space-y-2 text-sm">
+                      <p>
+                        Cada aluno (ou o curso) deve arcar com o preço de custo do modelo (mandíbula edêntula Nacional Ossos) e das guias cirúrgicas*. A Titaniumfix fornece os implantes (4 por aluno de acordo com a preferência do professor que irá ministrar a aula).
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        *Há a possibilidade do curso solicitante fazer parceria com um planning center local para redução do custo de produção das guias (parceiros locais costumam doar as guias para captação de clientes), neste caso as anilhas são bonificadas pela Titaniumfix.
+                      </p>
+                    </div>
+                    <div className="p-4 bg-white dark:bg-gray-900 rounded-lg border space-y-2">
+                      <Label className="font-semibold">Favor selecionar quais modelos de implante serão utilizados no curso:</Label>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="edit-implant-cirurgia-bfix-profile"
+                          checked={newLesson.implantModels?.includes("b-fix (Profile)") || false}
+                          onCheckedChange={(checked) => {
+                            setNewLesson((prev) =>
+                              checked ? { ...prev, implantModels: ["b-fix (Profile)"] } : { ...prev, implantModels: [] }
+                            );
+                          }}
+                        />
+                        <Label htmlFor="edit-implant-cirurgia-bfix-profile" className="cursor-pointer">b-fix (Profile)</Label>
+                      </div>
+                    </div>
+                    <div className="p-4 bg-white dark:bg-gray-900 rounded-lg border">
+                      <p className="font-semibold text-sm">Os materiais contra-ângulo e motor de implante são responsabilidade do curso/alunos!</p>
+                    </div>
+                  </div>
+                )}
+
+                {newLesson.lessonTheme === "Digital-Fix: Solução Protética do Analógico ao Digital" && (
+                  <div className="p-4 bg-white dark:bg-gray-900 rounded-lg border">
+                    {/* Opções em definição */}
+                  </div>
+                )}
+
+                {newLesson.lessonTheme === "Zigomático" && (
+                  <div className="space-y-4">
+                    <div className="bg-red-500 text-white font-bold py-2 px-4 rounded-t-lg uppercase">
+                      Hands-on Zigomático
+                    </div>
+                    <div className="p-4 bg-white dark:bg-gray-900 rounded-lg border space-y-2 text-sm">
+                      <p className="font-medium">Os materiais enviados pela Titaniumfix para essa atividade serão:</p>
+                      <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                        <li>1 crânio por aluno (cobrado o valor de R$ 147,00 por aluno)</li>
+                        <li>1 implante de cada modelo utilizado pelo curso (profile ou Flat)</li>
+                        <li>1 kit cirúrgico para cada motor disponível no curso.</li>
+                      </ul>
+                    </div>
+                    <div className="p-4 bg-white dark:bg-gray-900 rounded-lg border space-y-2">
+                      <Label>Favor selecionar quais modelos de implante serão utilizados no curso: <span className="text-red-500">*</span></Label>
+                      <div className="space-y-2">
+                        {implantModelOptionsZigomatico.map((model) => (
+                          <div key={model} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`edit-implant-zig-${model}`}
+                              checked={newLesson.implantModels?.includes(model) || false}
+                              onCheckedChange={(checked) => {
+                                setNewLesson((prev) => {
+                                  const currentModels = prev.implantModels || [];
+                                  if (checked) return { ...prev, implantModels: [...currentModels, model] };
+                                  return { ...prev, implantModels: currentModels.filter((m) => m !== model) };
+                                });
+                              }}
+                            />
+                            <Label htmlFor={`edit-implant-zig-${model}`} className="cursor-pointer">{model}</Label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Materiais Calculados - Fase Cirúrgica */}
+                {newLesson.lessonTheme === "Fase Cirúrgica" && newLesson.calculatedMaterials && (
                   <div className="mt-4 p-4 bg-white dark:bg-gray-900 rounded-lg border">
                     <div className="font-semibold mb-3">Materiais Calculados Automaticamente:</div>
                     <div className="space-y-2 text-sm">
                       <div>
-                        <span className="font-medium">Maxilas:</span> {newLesson.calculatedMaterials.totalMaxillas} unidades 
+                        <span className="font-medium">Maxilas:</span>
                         <span className="text-gray-600 dark:text-gray-400 ml-2">
-                          ({newLesson.calculatedMaterials.maxillasPerStudent} por aluno × {newLesson.numberOfStudents} alunos)
+                          {newLesson.calculatedMaterials.maxillasPerStudent} por aluno
+                          {newLesson.numberOfStudents && parseInt(newLesson.numberOfStudents) > 0 && (
+                            <> = {newLesson.calculatedMaterials.totalMaxillas} unidades ({newLesson.numberOfStudents} alunos)</>
+                          )}
                         </span>
                       </div>
                       <div>
-                        <span className="font-medium">Implantes:</span> {newLesson.calculatedMaterials.totalImplants} unidades 
+                        <span className="font-medium">Implantes:</span>
                         <span className="text-gray-600 dark:text-gray-400 ml-2">
-                          ({newLesson.calculatedMaterials.implantsPerStudent} por aluno × {newLesson.numberOfStudents} alunos)
+                          {newLesson.calculatedMaterials.implantsPerStudent} por aluno
+                          {newLesson.numberOfStudents && parseInt(newLesson.numberOfStudents) > 0 && (
+                            <> = {newLesson.calculatedMaterials.totalImplants} unidades ({newLesson.numberOfStudents} alunos)</>
+                          )}
                         </span>
                         <div className="text-xs text-gray-500 dark:text-gray-500 mt-1 ml-4">
                           Tipos: {newLesson.calculatedMaterials.implantTypes.join(", ")}
                         </div>
                       </div>
                       <div>
-                        <span className="font-medium">Motores:</span> {newLesson.calculatedMaterials.motorsNeeded} unidades 
+                        <span className="font-medium">Motores:</span>
                         <span className="text-gray-600 dark:text-gray-400 ml-2">
                           (1 motor por dupla)
+                          {newLesson.numberOfStudents && parseInt(newLesson.numberOfStudents) > 0 && (
+                            <> = {newLesson.calculatedMaterials.motorsNeeded} unidades</>
+                          )}
                         </span>
                       </div>
                       <div>
-                        <span className="font-medium">Kits cirúrgicos:</span> {newLesson.calculatedMaterials.totalSurgicalKits} unidades 
+                        <span className="font-medium">Kits cirúrgicos:</span>
                         <span className="text-gray-600 dark:text-gray-400 ml-2">
                           (1 kit por motor)
+                          {newLesson.numberOfStudents && parseInt(newLesson.numberOfStudents) > 0 && (
+                            <> = {newLesson.calculatedMaterials.totalSurgicalKits} unidades</>
+                          )}
                         </span>
                       </div>
                     </div>

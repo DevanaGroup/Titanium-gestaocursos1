@@ -64,6 +64,7 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
     'expense-requests': '/financial/expense-requests', // Mantido para compatibilidade
     'financial-incomes': '/financial/incomes',
     'financial-expenses': '/financial/expenses',
+    'financial-teacher-payments': '/financial/teacher-payments',
     'financial-reports': '/financial/reports',
     'courses': '/courses',
     'lessons': '/lessons',
@@ -121,6 +122,7 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
         activeTab === 'expense-requests' ||
         activeTab === 'financial-incomes' ||
         activeTab === 'financial-expenses' ||
+        activeTab === 'financial-teacher-payments' ||
         activeTab === 'financial-reports' ||
         location.pathname.startsWith('/financial');
       
@@ -771,6 +773,30 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
                       >
                         <TrendingDown className="h-3 w-3 mr-2" />
                         <span className="text-sm">Saídas</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        type="button"
+                        className={`
+                          w-full flex items-center justify-start px-2 
+                          py-1.5 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
+                          ${location.pathname === '/financial/teacher-payments'
+                            ? 'bg-red-500 text-white shadow-sm hover:bg-red-500 hover:text-white' 
+                            : 'text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200'
+                          }
+                        `}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          onTabChange('financial-teacher-payments');
+                          navigate('/financial/teacher-payments', { state: { activeTab: 'financial-teacher-payments' } });
+                          if (isMobile) {
+                            setIsMobileOpen(false);
+                          }
+                        }}
+                      >
+                        <GraduationCap className="h-3 w-3 mr-2" />
+                        <span className="text-sm">Pagamentos Professores</span>
                       </Button>
                       <Button
                         variant="ghost"

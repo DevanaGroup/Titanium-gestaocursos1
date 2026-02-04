@@ -36,6 +36,15 @@ import {
 } from "@/services/eventosService";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { cn } from "@/lib/utils";
+import { db } from "@/config/firebase";
+import { collection, getDocs, query, orderBy } from "firebase/firestore";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface EventosManagementProps {
   userId?: string | null;
@@ -50,6 +59,7 @@ export const EventosManagement: React.FC<EventosManagementProps> = ({ userId, us
   const [editing, setEditing] = useState<Evento | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
+  const [courses, setCourses] = useState<{ id: string; title: string }[]>([]);
   const [form, setForm] = useState({
     title: "",
     date: new Date(),
@@ -57,6 +67,7 @@ export const EventosManagement: React.FC<EventosManagementProps> = ({ userId, us
     description: "",
     material: "",
     location: "",
+    courseId: "",
   });
 
   const resetForm = () => {
@@ -67,8 +78,23 @@ export const EventosManagement: React.FC<EventosManagementProps> = ({ userId, us
       description: "",
       material: "",
       location: "",
+      courseId: "",
     });
     setEditing(null);
+  };
+
+  const fetchCourses = async () => {
+    try {
+      const q = query(collection(db, "courses"), orderBy("createdAt", "desc"));
+      const snap = await getDocs(q);
+      const list = snap.docs.map((d) => ({
+        id: d.id,
+        title: (d.data().title as string) || "",
+      }));
+      setCourses(list);
+    } catch (e) {
+      console.error("Erro ao carregar cursos:", e);
+    }
   };
 
   const loadEventos = async () => {
@@ -86,6 +112,10 @@ export const EventosManagement: React.FC<EventosManagementProps> = ({ userId, us
 
   useEffect(() => {
     loadEventos();
+  }, []);
+
+  useEffect(() => {
+    fetchCourses();
   }, []);
 
   const filtered = eventos.filter(
@@ -113,6 +143,7 @@ export const EventosManagement: React.FC<EventosManagementProps> = ({ userId, us
         description: form.description.trim(),
         material: form.material.trim() || undefined,
         location: form.location.trim() || undefined,
+        courseId: form.courseId.trim() || undefined,
         createdBy: userId,
         createdByName: userName,
       };
@@ -141,6 +172,7 @@ export const EventosManagement: React.FC<EventosManagementProps> = ({ userId, us
         description: form.description.trim(),
         material: form.material.trim() || undefined,
         location: form.location.trim() || undefined,
+        courseId: form.courseId.trim() || undefined,
       });
       toast.success("Evento atualizado.");
       resetForm();
@@ -173,6 +205,7 @@ export const EventosManagement: React.FC<EventosManagementProps> = ({ userId, us
       description: e.description || "",
       material: e.material || "",
       location: e.location || "",
+      courseId: e.courseId || "",
     });
   };
 
@@ -278,6 +311,23 @@ export const EventosManagement: React.FC<EventosManagementProps> = ({ userId, us
                       value={form.material}
                       onChange={(e) => setForm({ ...form, material: e.target.value })}
                     />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Vincular ao curso</Label>
+                    <Select
+                      value={form.courseId || "none"}
+                      onValueChange={(v) => setForm({ ...form, courseId: v === "none" ? "" : v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Nenhum" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Nenhum</SelectItem>
+                        {courses.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 <DialogFooter>
@@ -441,6 +491,23 @@ export const EventosManagement: React.FC<EventosManagementProps> = ({ userId, us
                 value={form.material}
                 onChange={(e) => setForm({ ...form, material: e.target.value })}
               />
+            </div>
+            <div className="grid gap-2">
+              <Label>Vincular ao curso</Label>
+              <Select
+                value={form.courseId || "none"}
+                onValueChange={(v) => setForm({ ...form, courseId: v === "none" ? "" : v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Nenhum" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhum</SelectItem>
+                  {courses.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>

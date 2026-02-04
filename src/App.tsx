@@ -12,6 +12,7 @@ import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 import CreateAdminUser from "./pages/CreateAdminUser";
 import CollaboratorDetailsPage from "./pages/CollaboratorDetails";
+import CourseDetailsPage from "./pages/CourseDetailsPage";
 import ClientDetailsPage from "./pages/ClientDetails";
 import ClientHistoryPage from "./pages/ClientHistory";
 import DocumentsManager from "./pages/DocumentsManager";
@@ -106,6 +107,11 @@ const App = () => (
                   <Dashboard />
                 </ProtectedRoute>
               } />
+              <Route path="/financial/teacher-payments" element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              } />
               <Route path="/financial/reports" element={
                 <ProtectedRoute>
                   <Dashboard />
@@ -144,6 +150,11 @@ const App = () => (
               <Route path="/courses" element={
                 <ProtectedRoute>
                   <Dashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/courses/:id" element={
+                <ProtectedRoute>
+                  <CourseDetailsPage />
                 </ProtectedRoute>
               } />
               <Route path="/lessons" element={

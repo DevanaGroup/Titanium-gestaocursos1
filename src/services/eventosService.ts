@@ -5,6 +5,8 @@ import {
   deleteDoc,
   doc,
   getDocs,
+  query,
+  where,
   Timestamp,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
@@ -19,6 +21,8 @@ export interface Evento {
   description: string;
   material?: string;
   location?: string;
+  courseId?: string;
+  lessonId?: string;
   createdBy: string;
   createdByName: string;
   createdAt: Date;
@@ -51,6 +55,8 @@ const fromFirestore = (id: string, data: Record<string, unknown>): Evento => ({
   description: (data.description as string) || '',
   material: data.material as string | undefined,
   location: data.location as string | undefined,
+  courseId: data.courseId as string | undefined,
+  lessonId: data.lessonId as string | undefined,
   createdBy: (data.createdBy as string) || '',
   createdByName: (data.createdByName as string) || '',
   createdAt: timestampToDate(data.createdAt),
@@ -59,6 +65,17 @@ const fromFirestore = (id: string, data: Record<string, unknown>): Evento => ({
 
 export const getEventos = async (): Promise<Evento[]> => {
   const snap = await getDocs(collection(db, COLLECTION_NAME));
+  const list = snap.docs.map((d) => fromFirestore(d.id, d.data() as Record<string, unknown>));
+  list.sort((a, b) => b.date.getTime() - a.date.getTime());
+  return list;
+};
+
+export const getEventosByCourseId = async (courseId: string): Promise<Evento[]> => {
+  const q = query(
+    collection(db, COLLECTION_NAME),
+    where('courseId', '==', courseId)
+  );
+  const snap = await getDocs(q);
   const list = snap.docs.map((d) => fromFirestore(d.id, d.data() as Record<string, unknown>));
   list.sort((a, b) => b.date.getTime() - a.date.getTime());
   return list;

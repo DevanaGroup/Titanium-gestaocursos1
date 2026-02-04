@@ -43,6 +43,8 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
+import { TeacherPaymentData } from "@/types/teacher";
+import { BankCombobox } from "@/components/BankCombobox";
 
 interface TeacherAddress {
   cep: string;
@@ -68,6 +70,7 @@ interface TeacherData extends User {
   cro?: string;
   address?: TeacherAddress;
   availability?: TeacherAvailability;
+  paymentData?: TeacherPaymentData;
 }
 
 const enableAdministrativeMode = () => {
@@ -137,6 +140,16 @@ const fetchCEP = async (cep: string): Promise<TeacherAddress | null> => {
     toast.error("Erro ao buscar CEP");
     return null;
   }
+};
+
+// Função para formatar CNPJ
+const formatCNPJ = (value: string): string => {
+  const numbers = value.replace(/\D/g, '');
+  if (numbers.length <= 2) return numbers;
+  if (numbers.length <= 5) return `${numbers.slice(0, 2)}.${numbers.slice(2)}`;
+  if (numbers.length <= 8) return `${numbers.slice(0, 2)}.${numbers.slice(2, 5)}.${numbers.slice(5)}`;
+  if (numbers.length <= 12) return `${numbers.slice(0, 2)}.${numbers.slice(2, 5)}.${numbers.slice(5, 8)}/${numbers.slice(8)}`;
+  return `${numbers.slice(0, 2)}.${numbers.slice(2, 5)}.${numbers.slice(5, 8)}/${numbers.slice(8, 12)}-${numbers.slice(12, 14)}`;
 };
 
 // Função para formatar CPF
@@ -287,7 +300,18 @@ export const TeacherManagement = () => {
       travelAvailability: "Dentro do estado",
       languages: [] as string[],
       noticePeriodDays: 30
-    } as TeacherAvailability
+    } as TeacherAvailability,
+    paymentData: {
+      bank: "",
+      bankCode: "",
+      agency: "",
+      account: "",
+      defaultValue: 0,
+      reference: "Aula ministrada",
+      paymentName: "",
+      cnpj: "",
+      pix: ""
+    } as TeacherPaymentData
   });
 
   const fetchTeachers = async () => {
@@ -325,6 +349,7 @@ export const TeacherManagement = () => {
             cro: data.cro || "",
             address: data.address || undefined,
             availability: data.availability || undefined,
+            paymentData: data.paymentData || undefined,
             createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt ? new Date(data.createdAt) : new Date()),
             updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : (data.updatedAt ? new Date(data.updatedAt) : new Date()),
           };
@@ -610,6 +635,7 @@ export const TeacherManagement = () => {
         cro: newTeacher.cro,
         address: newTeacher.address,
         availability: newTeacher.availability,
+        paymentData: newTeacher.paymentData,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
@@ -640,6 +666,17 @@ export const TeacherManagement = () => {
           travelAvailability: "Dentro do estado",
           languages: [],
           noticePeriodDays: 30
+        },
+        paymentData: {
+          bank: "",
+          bankCode: "",
+          agency: "",
+          account: "",
+          defaultValue: 0,
+          reference: "Aula ministrada",
+          paymentName: "",
+          cnpj: "",
+          pix: ""
         }
       });
       setBirthDate(undefined);
@@ -693,6 +730,7 @@ export const TeacherManagement = () => {
         photoURL: photoToSave,
         address: selectedTeacher.address,
         availability: selectedTeacher.availability,
+        paymentData: selectedTeacher.paymentData,
         updatedAt: serverTimestamp()
       });
 
@@ -1121,6 +1159,140 @@ export const TeacherManagement = () => {
                     </div>
                   </div>
 
+                  {/* Dados para Pagamento */}
+                  <div className="space-y-2">
+                    <h3 className="font-semibold text-sm">Dados para Pagamento</h3>
+                    <div className="grid gap-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="bank">Banco</Label>
+                        <BankCombobox
+                          value={newTeacher.paymentData.bank || undefined}
+                          onValueChange={(display, bankCode) =>
+                            setNewTeacher({
+                              ...newTeacher,
+                              paymentData: {
+                                ...newTeacher.paymentData,
+                                bank: display,
+                                bankCode: bankCode || ""
+                              }
+                            })
+                          }
+                          placeholder="Selecione o banco..."
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="agency">Agência (AG)</Label>
+                          <Input
+                            id="agency"
+                            placeholder="0000"
+                            value={newTeacher.paymentData.agency}
+                            onChange={(e) =>
+                              setNewTeacher({
+                                ...newTeacher,
+                                paymentData: { ...newTeacher.paymentData, agency: e.target.value }
+                              })
+                            }
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="account">Conta Corrente (C/C)</Label>
+                          <Input
+                            id="account"
+                            placeholder="00000-0"
+                            value={newTeacher.paymentData.account}
+                            onChange={(e) =>
+                              setNewTeacher({
+                                ...newTeacher,
+                                paymentData: { ...newTeacher.paymentData, account: e.target.value }
+                              })
+                            }
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="defaultValue">Valor padrão por aula (R$)</Label>
+                          <Input
+                            id="defaultValue"
+                            type="number"
+                            placeholder="0,00"
+                            min={0}
+                            step={0.01}
+                            value={newTeacher.paymentData.defaultValue || ""}
+                            onChange={(e) =>
+                              setNewTeacher({
+                                ...newTeacher,
+                                paymentData: {
+                                  ...newTeacher.paymentData,
+                                  defaultValue: parseFloat(e.target.value) || 0
+                                }
+                              })
+                            }
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="reference">Referente</Label>
+                          <Input
+                            id="reference"
+                            placeholder="Ex: Aula ministrada"
+                            value={newTeacher.paymentData.reference}
+                            onChange={(e) =>
+                              setNewTeacher({
+                                ...newTeacher,
+                                paymentData: { ...newTeacher.paymentData, reference: e.target.value }
+                              })
+                            }
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="paymentName">Nome para pagamento</Label>
+                          <Input
+                            id="paymentName"
+                            placeholder="Nome ou razão social"
+                            value={newTeacher.paymentData.paymentName}
+                            onChange={(e) =>
+                              setNewTeacher({
+                                ...newTeacher,
+                                paymentData: { ...newTeacher.paymentData, paymentName: e.target.value }
+                              })
+                            }
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="cnpj">CNPJ / CPF</Label>
+                          <Input
+                            id="cnpj"
+                            placeholder="00.000.000/0000-00 ou 000.000.000-00"
+                            value={newTeacher.paymentData.cnpj}
+                            onChange={(e) =>
+                              setNewTeacher({
+                                ...newTeacher,
+                                paymentData: { ...newTeacher.paymentData, cnpj: e.target.value }
+                              })
+                            }
+                          />
+                        </div>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="pix">Chave PIX</Label>
+                        <Input
+                          id="pix"
+                          placeholder="CPF, e-mail, celular ou chave aleatória"
+                          value={newTeacher.paymentData.pix}
+                          onChange={(e) =>
+                            setNewTeacher({
+                              ...newTeacher,
+                              paymentData: { ...newTeacher.paymentData, pix: e.target.value }
+                            })
+                          }
+                        />
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Senha */}
                   <div className="grid gap-2">
                     <Label htmlFor="password">Senha *</Label>
@@ -1145,7 +1317,7 @@ export const TeacherManagement = () => {
             </Dialog>
           </div>
         </CardHeader>
-        <CardContent className="min-h-[480px]">
+        <CardContent className="min-h-[600px]">
           <div className="mb-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -1167,7 +1339,7 @@ export const TeacherManagement = () => {
               {searchTerm ? "Nenhum professor encontrado" : "Nenhum professor cadastrado"}
             </div>
           ) : (
-            <div className="rounded-md border min-h-[400px]">
+            <div className="rounded-md border min-h-[520px]">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -1601,6 +1773,158 @@ export const TeacherManagement = () => {
                           noticePeriodDays: parseInt(e.target.value) || 30
                         }
                       })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Dados para Pagamento */}
+              <div className="space-y-2">
+                <h3 className="font-semibold text-sm">Dados para Pagamento</h3>
+                <div className="grid gap-4">
+                  <div className="grid gap-2">
+                    <Label>Banco</Label>
+                    <BankCombobox
+                      value={selectedTeacher.paymentData?.bank || undefined}
+                      onValueChange={(display, bankCode) =>
+                        setSelectedTeacher({
+                          ...selectedTeacher,
+                          paymentData: {
+                            ...(selectedTeacher.paymentData || { bank: "", bankCode: "", agency: "", account: "", defaultValue: 0, reference: "Aula ministrada", paymentName: "", cnpj: "", pix: "" }),
+                            bank: display,
+                            bankCode: bankCode || ""
+                          }
+                        })
+                      }
+                      placeholder="Selecione o banco..."
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="editAgency">Agência (AG)</Label>
+                      <Input
+                        id="editAgency"
+                        placeholder="0000"
+                        value={selectedTeacher.paymentData?.agency || ''}
+                        onChange={(e) =>
+                          setSelectedTeacher({
+                            ...selectedTeacher,
+                            paymentData: {
+                              ...(selectedTeacher.paymentData || { bank: "", bankCode: "", agency: "", account: "", defaultValue: 0, reference: "Aula ministrada", paymentName: "", cnpj: "", pix: "" }),
+                              agency: e.target.value
+                            }
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="editAccount">Conta Corrente (C/C)</Label>
+                      <Input
+                        id="editAccount"
+                        placeholder="00000-0"
+                        value={selectedTeacher.paymentData?.account || ''}
+                        onChange={(e) =>
+                          setSelectedTeacher({
+                            ...selectedTeacher,
+                            paymentData: {
+                              ...(selectedTeacher.paymentData || { bank: "", bankCode: "", agency: "", account: "", defaultValue: 0, reference: "Aula ministrada", paymentName: "", cnpj: "", pix: "" }),
+                              account: e.target.value
+                            }
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="editDefaultValue">Valor padrão por aula (R$)</Label>
+                      <Input
+                        id="editDefaultValue"
+                        type="number"
+                        placeholder="0,00"
+                        min={0}
+                        step={0.01}
+                        value={selectedTeacher.paymentData?.defaultValue ?? ''}
+                        onChange={(e) =>
+                          setSelectedTeacher({
+                            ...selectedTeacher,
+                            paymentData: {
+                              ...(selectedTeacher.paymentData || { bank: "", bankCode: "", agency: "", account: "", defaultValue: 0, reference: "Aula ministrada", paymentName: "", cnpj: "", pix: "" }),
+                              defaultValue: parseFloat(e.target.value) || 0
+                            }
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="editReference">Referente</Label>
+                      <Input
+                        id="editReference"
+                        placeholder="Ex: Aula ministrada"
+                        value={selectedTeacher.paymentData?.reference || ''}
+                        onChange={(e) =>
+                          setSelectedTeacher({
+                            ...selectedTeacher,
+                            paymentData: {
+                              ...(selectedTeacher.paymentData || { bank: "", bankCode: "", agency: "", account: "", defaultValue: 0, reference: "Aula ministrada", paymentName: "", cnpj: "", pix: "" }),
+                              reference: e.target.value
+                            }
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="editPaymentName">Nome para pagamento</Label>
+                      <Input
+                        id="editPaymentName"
+                        placeholder="Nome ou razão social"
+                        value={selectedTeacher.paymentData?.paymentName || ''}
+                        onChange={(e) =>
+                          setSelectedTeacher({
+                            ...selectedTeacher,
+                            paymentData: {
+                              ...(selectedTeacher.paymentData || { bank: "", bankCode: "", agency: "", account: "", defaultValue: 0, reference: "Aula ministrada", paymentName: "", cnpj: "", pix: "" }),
+                              paymentName: e.target.value
+                            }
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="editCnpj">CNPJ / CPF</Label>
+                      <Input
+                        id="editCnpj"
+                        placeholder="00.000.000/0000-00 ou 000.000.000-00"
+                        value={selectedTeacher.paymentData?.cnpj || ''}
+                        onChange={(e) =>
+                          setSelectedTeacher({
+                            ...selectedTeacher,
+                            paymentData: {
+                              ...(selectedTeacher.paymentData || { bank: "", bankCode: "", agency: "", account: "", defaultValue: 0, reference: "Aula ministrada", paymentName: "", cnpj: "", pix: "" }),
+                              cnpj: e.target.value
+                            }
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="editPix">Chave PIX</Label>
+                    <Input
+                      id="editPix"
+                      placeholder="CPF, e-mail, celular ou chave aleatória"
+                      value={selectedTeacher.paymentData?.pix || ''}
+                      onChange={(e) =>
+                        setSelectedTeacher({
+                          ...selectedTeacher,
+                          paymentData: {
+                            ...(selectedTeacher.paymentData || { bank: "", bankCode: "", agency: "", account: "", defaultValue: 0, reference: "Aula ministrada", paymentName: "", cnpj: "", pix: "" }),
+                            pix: e.target.value
+                          }
+                        })
+                      }
                     />
                   </div>
                 </div>
