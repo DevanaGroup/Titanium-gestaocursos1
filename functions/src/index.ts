@@ -1295,6 +1295,91 @@ export const createUserAuth = functions.https.onRequest(async (request, response
 
 /**
  * ========================================
+ * HARD DELETE DE USUÁRIO (Professores e Colaboradores)
+ * ========================================
+ */
+
+/**
+ * Função Callable para hard delete de usuário
+ * - Deleta da coleção users
+ * - Deleta do Firebase Auth
+ * - NÃO deleta tarefas relacionadas (preserva histórico)
+ */
+export const deleteUserPermanently = onCall({
+  memory: "256MiB",
+  maxInstances: 1
+}, async (request: CallableRequest) => {
+  if (!request.auth?.uid) {
+    throw new Error("Usuário não autenticado");
+  }
+
+  const callerUid = request.auth.uid;
+  const targetUserId = request.data?.userId as string;
+
+  if (!targetUserId) {
+    throw new Error("userId é obrigatório");
+  }
+
+  if (callerUid === targetUserId) {
+    throw new Error("Você não pode deletar sua própria conta");
+  }
+
+  const callerDoc = await admin.firestore().collection("users").doc(callerUid).get();
+  if (!callerDoc.exists) {
+    throw new Error("Usuário chamador não encontrado");
+  }
+
+  const callerData = callerDoc.data();
+  const callerLevel = callerData?.hierarchyLevel as string | undefined;
+
+  const getLevelNum = (level: string | undefined): number => {
+    const match = level?.match(/\d+/);
+    return match ? parseInt(match[0], 10) : 5;
+  };
+
+  const callerLevelNum = getLevelNum(callerLevel);
+  if (callerLevelNum > 3) {
+    throw new Error("Apenas gerentes podem deletar usuários");
+  }
+
+  const targetDoc = await admin.firestore().collection("users").doc(targetUserId).get();
+  if (!targetDoc.exists) {
+    throw new Error("Usuário alvo não encontrado");
+  }
+
+  const targetData = targetDoc.data();
+  const targetLevel = targetData?.hierarchyLevel as string | undefined;
+  const targetLevelNum = getLevelNum(targetLevel);
+
+  if (callerLevel === targetLevel) {
+    throw new Error(`Você não pode deletar outro usuário do mesmo nível hierárquico (${callerLevel})`);
+  }
+
+  // canManageLevel: Nível 0 e Nível 1 podem deletar qualquer um; outros só níveis inferiores
+  if (callerLevelNum >= targetLevelNum && callerLevel !== "Nível 0" && callerLevel !== "Nível 1") {
+    throw new Error(`Você não tem permissão para deletar usuários do nível: ${targetLevel}`);
+  }
+
+  await admin.firestore().collection("auditLogs").add({
+    action: "delete_user",
+    performedBy: callerUid,
+    performedByName: callerData?.firstName || callerData?.email || callerUid,
+    performedOn: targetUserId,
+    details: `Usuário ${targetUserId} removido permanentemente por ${callerData?.email || callerUid}`,
+    entityType: "collaborator",
+    changes: {},
+    timestamp: admin.firestore.FieldValue.serverTimestamp()
+  });
+
+  await admin.firestore().collection("users").doc(targetUserId).delete();
+
+  await admin.auth().deleteUser(targetUserId);
+
+  return { success: true, message: "Usuário removido permanentemente" };
+});
+
+/**
+ * ========================================
  * TRAMITAÇÃO DE TAREFAS
  * ========================================
  */
