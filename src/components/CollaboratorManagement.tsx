@@ -1157,26 +1157,14 @@ export const CollaboratorManagement = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center mb-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Gestão de Colaboradores</h1>
-          <p className="text-muted-foreground mt-1">
-            Gerencie toda a equipe e defina níveis hierárquicos organizacionais
-          </p>
-        </div>
-        
-        <div className="flex items-center space-x-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              type="search"
-              placeholder="Buscar colaborador..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 w-80"
-            />
+      <div className="mb-4">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Gestão de Colaboradores</h1>
+            <p className="text-muted-foreground mt-1">
+              Gerencie toda a equipe e defina níveis hierárquicos organizacionais
+            </p>
           </div>
-          
           <Button 
             onClick={() => setIsAddDialogOpen(true)}
             className="bg-red-500 hover:bg-red-600 text-white"
@@ -1184,6 +1172,18 @@ export const CollaboratorManagement = () => {
             <Plus className="mr-2 h-4 w-4" />
             Adicionar Colaborador
           </Button>
+        </div>
+        <div className="relative mt-4 flex justify-end">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input
+            type="search"
+            placeholder="Buscar colaborador..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 w-80"
+          />
+          </div>
         </div>
       </div>
 
