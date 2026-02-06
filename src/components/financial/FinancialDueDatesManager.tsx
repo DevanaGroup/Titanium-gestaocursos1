@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, isSameYear, differenceInDays, isToday, isTomorrow, isYesterday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Calendar, Download, FileText, Filter, Search, Upload, X, Check, Clock, AlertTriangle, DollarSign, Users, TrendingUp, Eye, Edit, Trash2, Plus, File, Paperclip, Send, RefreshCw } from 'lucide-react';
+import { Calendar, Download, FileText, Filter, Search, Upload, X, Check, Clock, AlertTriangle, DollarSign, Users, TrendingUp, Eye, Edit, Trash2, Plus, File, Paperclip, Send, RefreshCw, MoreVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,6 +15,12 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { getAllFinancialDues, updateFinancialDueStatus, FinancialDue, isOverdue } from '@/services/financialDueDatesService';
 
 interface FinancialAttachment {
@@ -278,34 +284,31 @@ const MonthlyView: React.FC<MonthlyViewProps> = ({
                             </Badge>
                           </td>
                           <td className="border border-gray-300 p-2 text-center">
-                            <div className="flex justify-center gap-1">
-                              {due.status === 'PENDING' || due.status === 'OVERDUE' ? (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => markAsPaid(due.id)}
-                                  className="bg-green-50 hover:bg-green-100 text-green-700"
-                                >
-                                  <Check className="w-4 h-4" />
-                                </Button>
-                              ) : (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => markAsPending(due.id)}
-                                  className="bg-yellow-50 hover:bg-yellow-100 text-yellow-700"
-                                >
-                                  <Clock className="w-4 h-4" />
-                                </Button>
-                              )}
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => openEditModal(due)}
-                                className="bg-blue-50 hover:bg-blue-100 text-blue-700"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
+                            <div className="flex justify-center">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  {due.status === 'PENDING' || due.status === 'OVERDUE' ? (
+                                    <DropdownMenuItem onClick={() => markAsPaid(due.id)}>
+                                      <Check className="mr-2 h-4 w-4" />
+                                      {due.type === 'RECEIVABLE' ? 'Marcar como Recebido' : 'Marcar como Pago'}
+                                    </DropdownMenuItem>
+                                  ) : (
+                                    <DropdownMenuItem onClick={() => markAsPending(due.id)}>
+                                      <Clock className="mr-2 h-4 w-4" />
+                                      Marcar como Pendente
+                                    </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuItem onClick={() => openEditModal(due)}>
+                                    <Edit className="mr-2 h-4 w-4" />
+                                    Editar
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
                           </td>
                         </tr>
@@ -1586,37 +1589,31 @@ export const FinancialDueDatesManager: React.FC = () => {
                               </div>
                             </td>
                             <td className="border border-gray-300 p-2 text-center">
-                              <div className="flex justify-center gap-1">
-                                {due.status === 'PENDING' || due.status === 'OVERDUE' ? (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => markAsPaid(due.id)}
-                                    className="bg-green-50 hover:bg-green-100 text-green-700"
-                                    title={due.type === 'RECEIVABLE' ? 'Marcar como Recebido' : 'Marcar como Pago'}
-                                  >
-                                    <Check className="w-4 h-4" />
-                                  </Button>
-                                ) : (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => markAsPending(due.id)}
-                                    className="bg-yellow-50 hover:bg-yellow-100 text-yellow-700"
-                                    title="Marcar como Pendente"
-                                  >
-                                    <Clock className="w-4 h-4" />
-                                  </Button>
-                                )}
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => openEditModal(due)}
-                                  className="bg-blue-50 hover:bg-blue-100 text-blue-700"
-                                  title="Editar Vencimento"
-                                >
-                                  <Edit className="w-4 h-4" />
-                                </Button>
+                              <div className="flex justify-center">
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                      <MoreVertical className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    {due.status === 'PENDING' || due.status === 'OVERDUE' ? (
+                                      <DropdownMenuItem onClick={() => markAsPaid(due.id)}>
+                                        <Check className="mr-2 h-4 w-4" />
+                                        {due.type === 'RECEIVABLE' ? 'Marcar como Recebido' : 'Marcar como Pago'}
+                                      </DropdownMenuItem>
+                                    ) : (
+                                      <DropdownMenuItem onClick={() => markAsPending(due.id)}>
+                                        <Clock className="mr-2 h-4 w-4" />
+                                        Marcar como Pendente
+                                      </DropdownMenuItem>
+                                    )}
+                                    <DropdownMenuItem onClick={() => openEditModal(due)}>
+                                      <Edit className="mr-2 h-4 w-4" />
+                                      Editar
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                               </div>
                             </td>
                           </tr>

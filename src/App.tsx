@@ -16,13 +16,9 @@ import CourseDetailsPage from "./pages/CourseDetailsPage";
 import ClientDetailsPage from "./pages/ClientDetails";
 import ClientHistoryPage from "./pages/ClientHistory";
 import DocumentsManager from "./pages/DocumentsManager";
-import Portfolio from "./pages/Portfolio";
-import Portfolio2 from "./pages/Portfolio2";
 import TaskHistory from "./pages/TaskHistory";
 import TaskDetails from "./pages/TaskDetails";
 import Presets from "./pages/Presets";
-import Projects from "./pages/Projects";
-import ProjectWrite from "./pages/ProjectWrite";
 import { AuthProvider } from "./contexts/AuthContext";
 import { PageTitleProvider } from "./contexts/PageTitleContext";
 import { HeaderActionsProvider } from "./contexts/HeaderActionsContext";
@@ -167,18 +163,6 @@ const App = () => (
                   <Dashboard />
                 </ProtectedRoute>
               } />
-              <Route path="/settings" element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              } />
-              <Route path="/support" element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              } />
-              <Route path="/portfolio" element={<Portfolio />} />
-              <Route path="/portfolio2" element={<Portfolio2 />} />
               <Route path="/task-history" element={
                 <ProtectedRoute>
                   <TaskHistory />
@@ -195,26 +179,6 @@ const App = () => (
                 </ProtectedRoute>
               } />
               <Route path="/presets/:presetId" element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              } />
-              <Route path="/projetos" element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              } />
-              <Route path="/projetos/:id" element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              } />
-              <Route path="/projetos/:id/edit" element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              } />
-              <Route path="/projetos/:id/map" element={
                 <ProtectedRoute>
                   <Dashboard />
                 </ProtectedRoute>

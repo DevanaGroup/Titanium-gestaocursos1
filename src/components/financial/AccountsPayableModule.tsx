@@ -24,8 +24,15 @@ import {
   Eye,
   Edit,
   Trash2,
-  X
+  X,
+  MoreVertical
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { getAllAccountsPayable, getAllSuppliers, deleteAccountPayable, deleteSupplier } from "@/services/financialCoreService";
 import { AccountsPayable, Supplier } from "@/types/financial";
@@ -506,17 +513,30 @@ export const AccountsPayableModule = () => {
                         <TableCell>{payable.dueDate.toLocaleDateString('pt-BR')}</TableCell>
                         <TableCell>{getStatusBadge(payable.status)}</TableCell>
                         <TableCell className="text-center">
-                          <div className="flex items-center justify-center space-x-2">
-                            <Button variant="ghost" size="sm" onClick={() => handleViewAccount(payable)}>
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => handleEditAccount(payable)}>
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => handleDeleteAccount(payable)}>
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleViewAccount(payable)}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                Visualizar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleEditAccount(payable)}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleDeleteAccount(payable)}
+                                className="text-red-600 focus:text-red-600"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Excluir
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -644,17 +664,30 @@ export const AccountsPayableModule = () => {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-center">
-                          <div className="flex items-center justify-center space-x-2">
-                            <Button variant="ghost" size="sm" onClick={() => handleViewSupplier(supplier)}>
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => handleEditSupplier(supplier)}>
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => handleDeleteSupplier(supplier)}>
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleViewSupplier(supplier)}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                Visualizar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleEditSupplier(supplier)}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleDeleteSupplier(supplier)}
+                                className="text-red-600 focus:text-red-600"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Excluir
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
                     ))}

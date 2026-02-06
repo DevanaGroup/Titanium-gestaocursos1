@@ -19,6 +19,9 @@ interface ConfirmationDialogProps {
   cancelText?: string;
   onConfirm: () => void;
   variant?: "default" | "destructive";
+  /** Opcional: segunda ação (ex: "Remover permanentemente") */
+  onConfirmSecondary?: () => void;
+  confirmSecondaryText?: string;
 }
 
 export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
@@ -30,9 +33,16 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
   cancelText = "Cancelar",
   onConfirm,
   variant = "default",
+  onConfirmSecondary,
+  confirmSecondaryText,
 }) => {
   const handleConfirm = () => {
     onConfirm();
+    onOpenChange(false);
+  };
+
+  const handleConfirmSecondary = () => {
+    onConfirmSecondary?.();
     onOpenChange(false);
   };
 
@@ -47,6 +57,14 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>{cancelText}</AlertDialogCancel>
+          {onConfirmSecondary && (
+            <AlertDialogAction
+              onClick={handleConfirmSecondary}
+              className="bg-red-800 hover:bg-red-900 focus:ring-red-800"
+            >
+              {confirmSecondaryText ?? "Remover permanentemente"}
+            </AlertDialogAction>
+          )}
           <AlertDialogAction
             onClick={handleConfirm}
             className={

@@ -2,12 +2,12 @@ import {
   collection,
   addDoc,
   updateDoc,
-  deleteDoc,
   doc,
   getDocs,
   query,
   where,
   Timestamp,
+  serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 
@@ -27,6 +27,7 @@ export interface Evento {
   createdByName: string;
   createdAt: Date;
   updatedAt: Date;
+  deletedAt?: Date | null;
 }
 
 export type EventoInput = Omit<Evento, 'id' | 'createdAt' | 'updatedAt'>;
@@ -65,7 +66,9 @@ const fromFirestore = (id: string, data: Record<string, unknown>): Evento => ({
 
 export const getEventos = async (): Promise<Evento[]> => {
   const snap = await getDocs(collection(db, COLLECTION_NAME));
-  const list = snap.docs.map((d) => fromFirestore(d.id, d.data() as Record<string, unknown>));
+  const list = snap.docs
+    .filter((d) => !d.data().deletedAt)
+    .map((d) => fromFirestore(d.id, d.data() as Record<string, unknown>));
   list.sort((a, b) => b.date.getTime() - a.date.getTime());
   return list;
 };
@@ -76,7 +79,9 @@ export const getEventosByCourseId = async (courseId: string): Promise<Evento[]> 
     where('courseId', '==', courseId)
   );
   const snap = await getDocs(q);
-  const list = snap.docs.map((d) => fromFirestore(d.id, d.data() as Record<string, unknown>));
+  const list = snap.docs
+    .filter((d) => !d.data().deletedAt)
+    .map((d) => fromFirestore(d.id, d.data() as Record<string, unknown>));
   list.sort((a, b) => b.date.getTime() - a.date.getTime());
   return list;
 };
@@ -85,6 +90,7 @@ export const createEvento = async (input: EventoInput): Promise<string> => {
   const now = new Date();
   const docRef = await addDoc(collection(db, COLLECTION_NAME), toFirestore({
     ...input,
+    deletedAt: null,
     createdAt: now,
     updatedAt: now,
   }));
@@ -97,5 +103,9 @@ export const updateEvento = async (id: string, updates: Partial<EventoInput>): P
 };
 
 export const deleteEvento = async (id: string): Promise<void> => {
-  await deleteDoc(doc(db, COLLECTION_NAME, id));
-}
+  const ref = doc(db, COLLECTION_NAME, id);
+  await updateDoc(ref, {
+    deletedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+};

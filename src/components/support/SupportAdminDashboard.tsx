@@ -614,9 +614,6 @@ export const SupportAdminDashboard: React.FC = () => {
                 </div>
               </PopoverContent>
             </Popover>
-          </div>
-        </CardContent>
-      </Card>
 
             <Select value={assignedFilter} onValueChange={setAssignedFilter}>
               <SelectTrigger>

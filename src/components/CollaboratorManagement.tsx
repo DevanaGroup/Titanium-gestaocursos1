@@ -20,7 +20,7 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { Search, Edit, Trash2, Eye, Users, CalendarIcon, History, Plus, MoreVertical } from "lucide-react";
+import { Search, Edit, Trash2, Eye, Users, CalendarIcon, History, Plus, MoreVertical, Ban, PowerOff, CircleAlert } from "lucide-react";
 import { toast } from "sonner";
 import { 
   Select, 
@@ -56,7 +56,6 @@ import { getDoc } from "firebase/firestore";
 import { User } from "@/types";
 import { useNavigate } from "react-router-dom";
 import { 
-  HIERARCHY_LEVELS, 
   canManageLevel, 
   hasPermission, 
   getManagedLevels,
@@ -67,7 +66,7 @@ import {
 } from "@/utils/hierarchyUtils";
 import { PermissionsManager } from "@/components/PermissionsManager";
 import { HistoryDialog } from "@/components/HistoryDialog";
-import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
+import { performHardDeleteUser } from "@/services/userService";
 
 // Funções utilitárias para controle do modo administrativo
 const enableAdministrativeMode = () => {
@@ -120,6 +119,8 @@ export const CollaboratorManagement = () => {
   const [currentUserData, setCurrentUserData] = useState<User | null>(null);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [selectedUserForDeletion, setSelectedUserForDeletion] = useState<string | null>(null);
+  const selectedCollaboratorForDelete = selectedUserForDeletion ? collaborators.find(c => c.uid === selectedUserForDeletion) : null;
+  const selectedCollaboratorName = selectedCollaboratorForDelete ? `${selectedCollaboratorForDelete.firstName || ""} ${selectedCollaboratorForDelete.lastName || ""}`.trim() || "Colaborador" : "Colaborador";
   const [showCustomPermissions, setShowCustomPermissions] = useState(false);
   const [customPermissions, setCustomPermissions] = useState<CustomPermissions | null>(null);
   
@@ -170,7 +171,9 @@ export const CollaboratorManagement = () => {
             }
           });
           
-          const collaboratorsList = usersSnapshot.docs.map(doc => {
+          const collaboratorsList = usersSnapshot.docs
+            .filter(d => !d.data().deletedAt)
+            .map(doc => {
             const data = doc.data();
             const uid = data.uid || doc.id;
             const unifiedData = unifiedDataMap.get(uid);
@@ -248,9 +251,10 @@ export const CollaboratorManagement = () => {
     return hasPermission(userRole, 'view_own_data');
   };
 
-  // Professores (Nível 6) só aparecem em /teachers; excluir da tabela de colaboradores
+  // Professores (Nível 6) só aparecem em /teachers; Nível 0 é fantasma (apenas via banco)
   const filteredCollaborators = collaborators
     .filter((collab) => collab.hierarchyLevel !== "Nível 6")
+    .filter((collab) => collab.hierarchyLevel !== "Nível 0")
     .filter(
       (collab) =>
         !searchTerm ||
@@ -515,6 +519,7 @@ export const CollaboratorManagement = () => {
       
       await setDoc(doc(db, 'users', newUserId), {
         uid: newUserId,
+        deletedAt: null,
         email: newCollaborator.email,
         firstName: newCollaborator.firstName,
         lastName: newCollaborator.lastName,
@@ -651,7 +656,32 @@ export const CollaboratorManagement = () => {
     setIsDeleteConfirmOpen(true);
   };
 
-  const confirmDelete = async () => {
+  const confirmDeleteSoft = async () => {
+    if (!selectedUserForDeletion) return;
+    try {
+      enableAdministrativeMode();
+      await createAuditLog(
+        'soft_delete_user',
+        `Colaborador excluído (soft delete) por ${auth.currentUser?.email}`,
+        selectedUserForDeletion
+      );
+      await updateDoc(doc(db, "users", selectedUserForDeletion), {
+        deletedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      setCollaborators(prev => prev.filter(collab => collab.uid !== selectedUserForDeletion));
+      toast.success("Colaborador excluído com sucesso! Os dados foram preservados.");
+      setIsDeleteConfirmOpen(false);
+      setSelectedUserForDeletion(null);
+    } catch (error) {
+      console.error("Erro ao excluir colaborador:", error);
+      toast.error("Erro ao excluir o colaborador.");
+    } finally {
+      disableAdministrativeMode();
+    }
+  };
+
+  const confirmDeleteHard = async () => {
     if (!selectedUserForDeletion) return;
 
     try {
@@ -713,39 +743,10 @@ export const CollaboratorManagement = () => {
         }
       }
 
-      // 4. Criar log de auditoria
-      console.log("📝 Criando log de auditoria...");
-      await createAuditLog(
-        'delete_user',
-        `Colaborador deletado por ${currentUser.email}`,
-        selectedUserForDeletion
-      );
+      // 4. Hard delete: remove da coleção users e do Firebase Auth (tarefas NÃO são deletadas)
+      await performHardDeleteUser(selectedUserForDeletion);
 
-      // 5. Deletar todas as tarefas associadas ao usuário
-      console.log("🗑️ Deletando tarefas associadas...");
-      const tasksQuery = query(
-        collection(db, "tasks"),
-        where("assignedTo", "==", selectedUserForDeletion)
-      );
-      const tasksDocs = await getDocs(tasksQuery);
-      const taskDeletePromises = tasksDocs.docs.map(doc => deleteDoc(doc.ref));
-      await Promise.all(taskDeletePromises);
-
-      // 6. ✅ DELETAR DA COLEÇÃO USERS
-      console.log("🗑️ Deletando da coleção users...");
-      try {
-        await deleteDoc(doc(db, "users", selectedUserForDeletion));
-        console.log("✅ Removido da coleção users com sucesso!");
-      } catch (error) {
-        console.log("⚠️ Erro ao deletar usuário da coleção users:", error);
-        throw error; // Relançar erro para interromper o processo
-      }
-
-      // 8. Não podemos deletar diretamente do Auth, então apenas remover da UI
-      console.log("✅ Usuário removido do Firestore. Nota: O usuário ainda existe no Auth mas sem acesso aos dados.");
-
-      // 9. Atualizar a UI
-      console.log("🔄 Atualizando interface...");
+      // 5. Atualizar a UI
       setCollaborators(prev => prev.filter(collab => collab.uid !== selectedUserForDeletion));
       toast.success("✅ Colaborador removido com sucesso do sistema!");
       setIsDeleteConfirmOpen(false);
@@ -1394,7 +1395,11 @@ export const CollaboratorManagement = () => {
           </TableHeader>
           <TableBody>
             {filteredCollaborators.map((collaborator) => (
-              <TableRow key={collaborator.id}>
+              <TableRow
+                key={collaborator.id}
+                className="cursor-pointer hover:bg-muted/50"
+                onClick={() => handleViewCollaboratorDetails(collaborator)}
+              >
                 <TableCell className="font-medium">
                   <div className="flex items-center space-x-3">
                     <Avatar className="w-8 h-8">
@@ -1448,7 +1453,7 @@ export const CollaboratorManagement = () => {
                     <span>{collaborator.createdAt ? new Date(collaborator.createdAt).toLocaleDateString('pt-BR') : 'N/D'}</span>
                   </div>
                 </TableCell>
-                <TableCell className="text-center">
+                <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
@@ -1511,17 +1516,69 @@ export const CollaboratorManagement = () => {
         </Table>
       </div>
 
-      {/* Diálogo de confirmação de exclusão */}
-      <ConfirmationDialog
-        open={isDeleteConfirmOpen}
-        onOpenChange={setIsDeleteConfirmOpen}
-        title="Confirmar Exclusão do Colaborador"
-        description="Você tem certeza que deseja excluir este colaborador? Esta ação não pode ser desfeita e removerá permanentemente todos os dados relacionados."
-        confirmText="Excluir"
-        cancelText="Cancelar"
-        onConfirm={confirmDelete}
-        variant="destructive"
-      />
+      {/* Diálogo de confirmação de exclusão - layout com cards */}
+      <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto notranslate" translate="no">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Ban className="h-5 w-5 text-red-600" />
+              Gerenciar Acesso: {selectedCollaboratorName}
+            </DialogTitle>
+            <DialogDescription>
+              Escolha uma ação para o profissional <strong>{selectedCollaboratorName}</strong>:
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div
+              onClick={() => { confirmDeleteSoft(); setIsDeleteConfirmOpen(false); }}
+              className="border rounded-lg p-4 cursor-pointer transition-all border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+            >
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-gray-100">
+                  <PowerOff className="h-5 w-5 text-gray-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-gray-900 mb-1">Desabilitar Acesso</h3>
+                  <p className="text-sm text-gray-600 mb-2">O usuário perderá o acesso ao sistema, mas os dados serão mantidos no banco de dados. Esta ação pode ser revertida futuramente.</p>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded">✓ Reversível</span>
+                    <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">✓ Mantém dados</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              onClick={() => { confirmDeleteHard(); setIsDeleteConfirmOpen(false); }}
+              className="border rounded-lg p-4 cursor-pointer transition-all border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+            >
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-gray-100">
+                  <Trash2 className="h-5 w-5 text-gray-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-gray-900 mb-1">Deletar Permanentemente</h3>
+                  <p className="text-sm text-gray-600 mb-2">O usuário será removido completamente do sistema, incluindo Firestore e Firebase Authentication. Esta ação <strong>não pode ser desfeita</strong>. Tarefas associadas são preservadas.</p>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    <span className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded">⚠ Irreversível</span>
+                    <span className="text-xs px-2 py-1 bg-orange-100 text-orange-700 rounded">⚠ Remove dados</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 flex items-start gap-2">
+              <CircleAlert className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-yellow-800">
+                <strong>Atenção:</strong> Ambas as ações impedirão o usuário de acessar o sistema. A diferença é que &quot;Desabilitar&quot; mantém os dados para recuperação futura, enquanto &quot;Deletar&quot; remove tudo permanentemente.
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteConfirmOpen(false)}>
+              Cancelar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Diálogo de Edição */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>

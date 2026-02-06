@@ -20,19 +20,18 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { Search, Edit, Trash2, UserCircle, Plus } from "lucide-react";
+import { Search, Edit, Trash2, UserCircle, Plus, MoreVertical, Ban, PowerOff, CircleAlert } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { db, auth, FUNCTIONS_BASE_URL } from "@/config/firebase";
-import { collection, getDocs, deleteDoc, doc, serverTimestamp, setDoc, updateDoc, query, where } from "firebase/firestore";
+import { collection, getDocs, deleteDoc, updateDoc, doc, serverTimestamp, setDoc, query, where } from "firebase/firestore";
 import { HierarchyLevel } from "@/types";
 import { getDoc } from "firebase/firestore";
 import { User } from "@/types";
 import { getHierarchyColor } from "@/utils/hierarchyUtils";
-import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon, Loader2 } from "lucide-react";
@@ -45,6 +44,13 @@ import {
 } from "@/components/ui/select";
 import { TeacherPaymentData } from "@/types/teacher";
 import { BankCombobox } from "@/components/BankCombobox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { performHardDeleteUser } from "@/services/userService";
 
 interface TeacherAddress {
   cep: string;
@@ -266,6 +272,8 @@ export const TeacherManagement = () => {
   const [currentUserData, setCurrentUserData] = useState<User | null>(null);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [selectedUserForDeletion, setSelectedUserForDeletion] = useState<string | null>(null);
+  const selectedTeacherForDelete = selectedUserForDeletion ? teachers.find(t => t.uid === selectedUserForDeletion) : null;
+  const selectedTeacherName = selectedTeacherForDelete ? (selectedTeacherForDelete.fullName || selectedTeacherForDelete.displayName || "Professor") : "Professor";
   const [isLoadingCEP, setIsLoadingCEP] = useState(false);
   const [birthDate, setBirthDate] = useState<Date | undefined>(undefined);
   const [editBirthDate, setEditBirthDate] = useState<Date | undefined>(undefined);
@@ -323,6 +331,7 @@ export const TeacherManagement = () => {
       const usersSnapshot = await getDocs(usersCollection);
       
       const teachersList = usersSnapshot.docs
+        .filter(d => !d.data().deletedAt)
         .map(doc => {
           const data = doc.data();
           const uid = data.uid || doc.id;
@@ -621,6 +630,7 @@ export const TeacherManagement = () => {
       
       await setDoc(doc(db, "users", newUserId), {
         uid: newUserId,
+        deletedAt: null,
         email: newTeacher.email,
         firstName: firstName,
         lastName: lastName,
@@ -751,12 +761,10 @@ export const TeacherManagement = () => {
     }
   };
 
-  const handleDeleteTeacher = async () => {
+  const handleDeleteTeacherSoft = async () => {
     if (!selectedUserForDeletion) return;
-
     try {
       enableAdministrativeMode();
-
       const userDoc = await getDoc(doc(db, "users", selectedUserForDeletion));
       if (!userDoc.exists()) {
         toast.error("Professor não encontrado");
@@ -765,20 +773,36 @@ export const TeacherManagement = () => {
         disableAdministrativeMode();
         return;
       }
-      
-      await deleteDoc(doc(db, "users", selectedUserForDeletion));
-
-      toast.success("Professor removido com sucesso!");
+      await updateDoc(doc(db, "users", selectedUserForDeletion), {
+        deletedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      toast.success("Professor excluído com sucesso! Os dados foram preservados.");
       setIsDeleteConfirmOpen(false);
       setSelectedUserForDeletion(null);
-      
       await fetchTeachers();
-      
       disableAdministrativeMode();
     } catch (error: any) {
-      console.error("Erro ao deletar professor:", error);
+      console.error("Erro ao excluir professor:", error);
       disableAdministrativeMode();
+      toast.error("Erro ao excluir professor: " + (error.message || "Erro desconhecido"));
+    }
+  };
+
+  const handleDeleteTeacherHard = async () => {
+    if (!selectedUserForDeletion) return;
+    try {
+      enableAdministrativeMode();
+      await performHardDeleteUser(selectedUserForDeletion);
+      toast.success("Professor removido permanentemente do sistema!");
+      setIsDeleteConfirmOpen(false);
+      setSelectedUserForDeletion(null);
+      await fetchTeachers();
+    } catch (error: any) {
+      console.error("Erro ao deletar professor:", error);
       toast.error("Erro ao deletar professor: " + (error.message || "Erro desconhecido"));
+    } finally {
+      disableAdministrativeMode();
     }
   };
 
@@ -1353,7 +1377,17 @@ export const TeacherManagement = () => {
                 </TableHeader>
                 <TableBody>
                   {filteredTeachers.map((teacher) => (
-                    <TableRow key={teacher.id}>
+                    <TableRow
+                      key={teacher.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => {
+                        setSelectedTeacher(teacher);
+                        setEditBirthDate(teacher.birthDate);
+                        setEditBirthDateInput(teacher.birthDate ? format(teacher.birthDate, "dd/MM/yyyy", { locale: ptBR }) : "");
+                        setEditPhotoPreview(null);
+                        setIsEditDialogOpen(true);
+                      }}
+                    >
                       <TableCell>
                         <div className="flex items-center justify-center gap-3">
                           <Avatar>
@@ -1385,32 +1419,38 @@ export const TeacherManagement = () => {
                       <TableCell className="text-center">{teacher.cpf ? formatCPF(teacher.cpf) : "-"}</TableCell>
                       <TableCell className="text-center">{teacher.cro || "-"}</TableCell>
                       <TableCell className="text-center whitespace-nowrap">{teacher.phoneNumber || "-"}</TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex justify-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                              setSelectedTeacher(teacher);
-                              setEditBirthDate(teacher.birthDate);
-                              setEditBirthDateInput(teacher.birthDate ? format(teacher.birthDate, "dd/MM/yyyy", { locale: ptBR }) : "");
-                              setEditPhotoPreview(null);
-                              setIsEditDialogOpen(true);
-                            }}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                              setSelectedUserForDeletion(teacher.uid);
-                              setIsDeleteConfirmOpen(true);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
+                      <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setSelectedTeacher(teacher);
+                                setEditBirthDate(teacher.birthDate);
+                                setEditBirthDateInput(teacher.birthDate ? format(teacher.birthDate, "dd/MM/yyyy", { locale: ptBR }) : "");
+                                setEditPhotoPreview(null);
+                                setIsEditDialogOpen(true);
+                              }}
+                            >
+                              <Edit className="mr-2 h-4 w-4" />
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setSelectedUserForDeletion(teacher.uid);
+                                setIsDeleteConfirmOpen(true);
+                              }}
+                              className="text-red-600 focus:text-red-600"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -1951,17 +1991,69 @@ export const TeacherManagement = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog de Confirmação de Exclusão */}
-      <ConfirmationDialog
-        open={isDeleteConfirmOpen}
-        onOpenChange={setIsDeleteConfirmOpen}
-        title="Confirmar Exclusão"
-        description="Tem certeza que deseja remover este professor? Esta ação não pode ser desfeita."
-        confirmText="Remover"
-        cancelText="Cancelar"
-        onConfirm={handleDeleteTeacher}
-        variant="destructive"
-      />
+      {/* Dialog de Confirmação de Exclusão - layout com cards */}
+      <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto notranslate" translate="no">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Ban className="h-5 w-5 text-red-600" />
+              Gerenciar Acesso: {selectedTeacherName}
+            </DialogTitle>
+            <DialogDescription>
+              Escolha uma ação para o profissional <strong>{selectedTeacherName}</strong>:
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div
+              onClick={() => { handleDeleteTeacherSoft(); setIsDeleteConfirmOpen(false); }}
+              className="border rounded-lg p-4 cursor-pointer transition-all border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+            >
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-gray-100">
+                  <PowerOff className="h-5 w-5 text-gray-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-gray-900 mb-1">Desabilitar Acesso</h3>
+                  <p className="text-sm text-gray-600 mb-2">O usuário perderá o acesso ao sistema, mas os dados serão mantidos no banco de dados. Esta ação pode ser revertida futuramente.</p>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded">✓ Reversível</span>
+                    <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">✓ Mantém dados</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              onClick={() => { handleDeleteTeacherHard(); setIsDeleteConfirmOpen(false); }}
+              className="border rounded-lg p-4 cursor-pointer transition-all border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+            >
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-gray-100">
+                  <Trash2 className="h-5 w-5 text-gray-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-gray-900 mb-1">Deletar Permanentemente</h3>
+                  <p className="text-sm text-gray-600 mb-2">O usuário será removido completamente do sistema, incluindo Firestore e Firebase Authentication. Esta ação <strong>não pode ser desfeita</strong>. Tarefas associadas são preservadas.</p>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    <span className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded">⚠ Irreversível</span>
+                    <span className="text-xs px-2 py-1 bg-orange-100 text-orange-700 rounded">⚠ Remove dados</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 flex items-start gap-2">
+              <CircleAlert className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-yellow-800">
+                <strong>Atenção:</strong> Ambas as ações impedirão o usuário de acessar o sistema. A diferença é que &quot;Desabilitar&quot; mantém os dados para recuperação futura, enquanto &quot;Deletar&quot; remove tudo permanentemente.
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteConfirmOpen(false)}>
+              Cancelar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

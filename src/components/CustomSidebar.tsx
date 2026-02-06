@@ -5,7 +5,7 @@ import Logo from '@/components/Logo';
 import { 
   Home, Users, Calendar, CalendarDays,
   KanbanSquare, FileText, Receipt,
-  Settings, HelpCircle, GraduationCap,
+  GraduationCap,
   FolderOpen, ChevronDown, X, Archive, BookOpen, UserCircle,
   DollarSign, TrendingUp, TrendingDown, BarChart3
 } from 'lucide-react';
@@ -13,7 +13,7 @@ import { collection, query, where, getDocs } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { auth, db } from '@/config/firebase';
 import { doc, getDoc } from 'firebase/firestore';
-import { hasPermission, hasFinancialAccess, hasSettingsAccess, getLevelNumber, normalizeHierarchyLevel } from "@/utils/hierarchyUtils";
+import { hasPermission, hasFinancialAccess, getLevelNumber, normalizeHierarchyLevel } from "@/utils/hierarchyUtils";
 import { HierarchyLevel } from "@/types";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet, SheetContent, SheetOverlay, SheetPortal } from "@/components/ui/sheet";
@@ -70,11 +70,8 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
     'lessons': '/lessons',
     'teachers': '/teachers',
     'collaborators': '/collaborators',
-    'settings': '/settings',
-    'support-web': '/support',
     'documents': '/documents',
-    'presets': '/presets',
-    'projetos': '/projetos'
+    'presets': '/presets'
   };
 
   // Sincronizar estado quando a prop muda
@@ -183,13 +180,6 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
       requiresPermission: true,
       permission: 'manage_department'
     },
-    {
-      id: "support-web",
-      icon: <HelpCircle className="h-4 w-4" />,
-      label: "Suporte",
-      requiresPermission: true,
-      permission: 'suporte_web'
-    }
   ];
 
 
@@ -208,17 +198,10 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
       label: "Minha Pasta",
       requiresPermission: false
     },
-    {
-      id: "support-web",
-      icon: <HelpCircle className="h-4 w-4" />,
-      label: "Suporte",
-      requiresPermission: true,
-      permission: 'suporte_web'
-    }
   ];
 
   // Menu completo para Nível 1 (acesso total a todos os módulos)
-  // Ordem: Início, Colaboradores, Agenda, Tarefas, Financeiros, Configurações, Suporte
+  // Ordem: Início, Colaboradores, Agenda, Tarefas, Financeiros
   const directorTiMenuItems = [
     {
       id: "home",
@@ -268,24 +251,10 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
       permission: 'view_financial_reports',
       hasSubmenu: true
     },
-    {
-      id: "settings",
-      icon: <Settings className="h-4 w-4" />,
-      label: "Configurações",
-      requiresPermission: true,
-      permission: 'settings_access'
-    },
-    {
-      id: "support-web",
-      icon: <HelpCircle className="h-4 w-4" />,
-      label: "Suporte",
-      requiresPermission: true,
-      permission: 'suporte_web'
-    }
   ];
 
   // Determinar qual menu usar baseado na hierarquia (memoizado para evitar re-renderizações)
-  // Nível 1 vê todos os menus (usar directorTiMenuItems que tem tudo)
+  // Nível 0 e Nível 1 vêem todos os menus na mesma ordem (directorTiMenuItems)
   const menuItems = useMemo(() => {
     if (userRoleRaw === 'Cliente Externo' || userRoleRaw === 'Cliente') {
       return clientExternalMenuItems;
@@ -294,14 +263,14 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
     // Para níveis numéricos, verificar o número do nível
     const levelNum = getLevelNumber(userRole);
     
-    // Nível 1 vê todos os menus (menu completo)
-    if (levelNum === 1) {
+    // Nível 0 e Nível 1 vêem todos os menus (menu completo, mesma ordem)
+    if (levelNum <= 1) {
       return directorTiMenuItems;
     }
     
     // Para outros níveis, usar menu padrão
     return defaultMenuItems;
-  }, [userRole]);
+  }, [userRole, userRoleRaw]);
 
   // Obter a hierarquia do usuário atual (executado apenas uma vez)
   useEffect(() => {
@@ -382,11 +351,11 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
   }, []); // Executado apenas uma vez na montagem
 
   // Filtrar itens baseado nas permissões do usuário (memoizado para evitar re-renderizações)
-  // Nível 1 vê todos os menus sem filtro
+  // Nível 0 e Nível 1 vêem todos os menus sem filtro
   const availableMenuItems = useMemo(() => {
     const levelNum = getLevelNumber(userRole);
-    if (levelNum === 1) {
-      return menuItems; // Nível 1 vê tudo
+    if (levelNum <= 1) {
+      return menuItems; // Nível 0 e Nível 1 vêem tudo
     }
     return menuItems.filter(item => {
       if (!item.requiresPermission) return true;
@@ -461,12 +430,6 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
           {availableMenuItems.map((item) => {
             return (
             <div key={item.id}>
-              {/* Adicionar separador antes do item de suporte */}
-              {item.id === 'support-web' && (
-                <div className="mx-2 my-3">
-                  <div className="border-t border-border"></div>
-                </div>
-              )}
               {item.id === 'tasks' && (!isCollapsed || isMobile) ? (
                 <>
                   <Button

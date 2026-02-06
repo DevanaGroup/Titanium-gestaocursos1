@@ -19,11 +19,17 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { Search, Edit, Trash2, Plus, BookOpen } from "lucide-react";
+import { Search, Edit, Trash2, Plus, BookOpen, MoreVertical } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { db } from "@/config/firebase";
-import { collection, getDocs, addDoc, deleteDoc, doc, serverTimestamp, setDoc, query, orderBy, getDoc, where } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, doc, serverTimestamp, setDoc, query, orderBy, getDoc, where } from "firebase/firestore";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import {
   Select,
@@ -187,40 +193,77 @@ export const LessonManagement = () => {
     setNewLesson(prev => ({ ...prev, courseResponsiblePhone: formatted }));
   };
 
-  // Função para calcular materiais automaticamente (apenas Fase Cirúrgica)
+  // Função para calcular materiais automaticamente (Fase Cirúrgica, Cirurgia Guiada, Zigomático)
   const calculateMaterials = useCallback(() => {
-    if (
-      newLesson.hasHandsOn !== "Sim" ||
-      newLesson.lessonTheme !== "Fase Cirúrgica" ||
-      !newLesson.implantModels ||
-      newLesson.implantModels.length === 0
-    ) {
-      return undefined;
-    }
+    if (newLesson.hasHandsOn !== "Sim") return undefined;
 
     const numberOfStudents = parseInt(newLesson.numberOfStudents) || 0;
-    const implantModels = newLesson.implantModels;
+    if (numberOfStudents <= 0) return undefined;
 
-    const maxillasPerStudent = 1;
-    const hasOnlyProfile =
-      implantModels.length === 1 &&
-      (implantModels[0] === "e-fix (Profile)" || implantModels[0] === "b-fix (Profile)");
-    const implantsPerStudent = hasOnlyProfile
-      ? 2
-      : Math.min(Math.max(implantModels.length, 2), 4);
+    const theme = newLesson.lessonTheme;
+    const implantModels = newLesson.implantModels || [];
     const motorsNeeded = Math.ceil(numberOfStudents / 2);
-    const surgicalKitsPerMotor = 1;
 
-    return {
-      maxillasPerStudent,
-      implantsPerStudent,
-      implantTypes: implantModels,
-      surgicalKitsPerMotor,
-      motorsNeeded,
-      totalMaxillas: maxillasPerStudent * numberOfStudents,
-      totalImplants: implantsPerStudent * numberOfStudents,
-      totalSurgicalKits: surgicalKitsPerMotor * motorsNeeded
-    };
+    // Fase Cirúrgica
+    if (theme === "Fase Cirúrgica" && implantModels.length > 0) {
+      const maxillasPerStudent = 1;
+      const hasOnlyProfile =
+        implantModels.length === 1 &&
+        (implantModels[0] === "e-fix (Profile)" || implantModels[0] === "b-fix (Profile)");
+      const implantsPerStudent = hasOnlyProfile
+        ? 2
+        : Math.min(Math.max(implantModels.length, 2), 4);
+      const surgicalKitsPerMotor = 1;
+
+      return {
+        maxillasPerStudent,
+        implantsPerStudent,
+        implantTypes: implantModels,
+        surgicalKitsPerMotor,
+        motorsNeeded,
+        totalMaxillas: maxillasPerStudent * numberOfStudents,
+        totalImplants: implantsPerStudent * numberOfStudents,
+        totalSurgicalKits: surgicalKitsPerMotor * motorsNeeded
+      };
+    }
+
+    // Cirurgia Guiada: 1 modelo (mandíbula) por aluno, 4 implantes por aluno (Titaniumfix), 1 kit por motor
+    if (theme === "Cirurgia Guiada" && implantModels.length > 0) {
+      const maxillasPerStudent = 1;
+      const implantsPerStudent = 4;
+      const surgicalKitsPerMotor = 1;
+
+      return {
+        maxillasPerStudent,
+        implantsPerStudent,
+        implantTypes: implantModels,
+        surgicalKitsPerMotor,
+        motorsNeeded,
+        totalMaxillas: maxillasPerStudent * numberOfStudents,
+        totalImplants: implantsPerStudent * numberOfStudents,
+        totalSurgicalKits: surgicalKitsPerMotor * motorsNeeded
+      };
+    }
+
+    // Zigomático: 1 crânio por aluno, 1 implante de cada modelo por aluno, 1 kit por motor
+    if (theme === "Zigomático" && implantModels.length > 0) {
+      const maxillasPerStudent = 1; // crânios
+      const implantsPerStudent = implantModels.length; // 1 de cada modelo
+      const surgicalKitsPerMotor = 1;
+
+      return {
+        maxillasPerStudent,
+        implantsPerStudent,
+        implantTypes: implantModels,
+        surgicalKitsPerMotor,
+        motorsNeeded,
+        totalMaxillas: maxillasPerStudent * numberOfStudents,
+        totalImplants: implantsPerStudent * numberOfStudents,
+        totalSurgicalKits: surgicalKitsPerMotor * motorsNeeded
+      };
+    }
+
+    return undefined;
   }, [newLesson.hasHandsOn, newLesson.lessonTheme, newLesson.implantModels, newLesson.numberOfStudents]);
 
   // Handler para troca de tema (limpa implantModels ao mudar; Zigomático vem com Profile e Flat pré-selecionados)
@@ -277,9 +320,11 @@ export const LessonManagement = () => {
       const coursesQuery = query(coursesCollection, orderBy("createdAt", "desc"));
       const coursesSnapshot = await getDocs(coursesQuery);
       
-      const coursesList = coursesSnapshot.docs.map(doc => ({
-        id: doc.id,
-        title: doc.data().title || ""
+      const coursesList = coursesSnapshot.docs
+        .filter(d => !d.data().deletedAt)
+        .map(d => ({
+        id: d.id,
+        title: d.data().title || ""
       }));
       
       setCourses(coursesList);
@@ -296,7 +341,9 @@ export const LessonManagement = () => {
       const lessonsQuery = query(lessonsCollection, orderBy("createdAt", "desc"));
       const lessonsSnapshot = await getDocs(lessonsQuery);
       
-      const lessonsList = await Promise.all(lessonsSnapshot.docs.map(async (lessonDoc) => {
+      const lessonsList = await Promise.all(lessonsSnapshot.docs
+        .filter(d => !d.data().deletedAt)
+        .map(async (lessonDoc) => {
         const data = lessonDoc.data();
         let courseTitle = "";
         
@@ -421,6 +468,10 @@ export const LessonManagement = () => {
       toast.error("É necessário informar se será necessário solicitar professor");
       return;
     }
+    if ((newLesson.needsProfessor === "Não" || newLesson.needsProfessor === "Outro") && !newLesson.professorId) {
+      toast.error("É necessário selecionar o professor quando a resposta for Não ou Outro");
+      return;
+    }
     if (!newLesson.numberOfStudents.trim()) {
       toast.error("O número de alunos é obrigatório");
       return;
@@ -456,11 +507,16 @@ export const LessonManagement = () => {
     try {
       const lessonData = {
         ...newLesson,
+        deletedAt: null,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       };
+      // Firestore não aceita undefined - remover campos undefined
+      const cleanData = Object.fromEntries(
+        Object.entries(lessonData).filter(([, v]) => v !== undefined)
+      ) as typeof lessonData;
 
-      await addDoc(collection(db, "lessons"), lessonData);
+      await addDoc(collection(db, "lessons"), cleanData);
       toast.success("Aula criada com sucesso!");
       setIsAddDialogOpen(false);
       setNewLesson({
@@ -548,6 +604,10 @@ export const LessonManagement = () => {
       toast.error("É necessário informar se será necessário solicitar professor");
       return;
     }
+    if ((newLesson.needsProfessor === "Não" || newLesson.needsProfessor === "Outro") && !newLesson.professorId) {
+      toast.error("É necessário selecionar o professor quando a resposta for Não ou Outro");
+      return;
+    }
     if (!newLesson.numberOfStudents.trim()) {
       toast.error("O número de alunos é obrigatório");
       return;
@@ -582,10 +642,17 @@ export const LessonManagement = () => {
 
     try {
       const lessonRef = doc(db, "lessons", selectedLesson.id);
-      await setDoc(lessonRef, {
+      const updateData = {
         ...newLesson,
+        deletedAt: null,
         updatedAt: serverTimestamp()
-      }, { merge: true });
+      };
+      // Firestore não aceita undefined - remover campos undefined
+      const cleanData = Object.fromEntries(
+        Object.entries(updateData).filter(([, v]) => v !== undefined)
+      ) as typeof updateData;
+
+      await setDoc(lessonRef, cleanData, { merge: true });
 
       toast.success("Aula atualizada com sucesso!");
       setIsEditDialogOpen(false);
@@ -628,7 +695,10 @@ export const LessonManagement = () => {
     if (!selectedLessonForDeletion) return;
 
     try {
-      await deleteDoc(doc(db, "lessons", selectedLessonForDeletion));
+      await updateDoc(doc(db, "lessons", selectedLessonForDeletion), {
+        deletedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
       toast.success("Aula excluída com sucesso!");
       setIsDeleteConfirmOpen(false);
       setSelectedLessonForDeletion(null);
@@ -755,7 +825,11 @@ export const LessonManagement = () => {
               </TableHeader>
               <TableBody>
                 {filteredLessons.map((lesson) => (
-                  <TableRow key={lesson.id}>
+                  <TableRow
+                    key={lesson.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => openEditDialog(lesson)}
+                  >
                     <TableCell className="text-center font-medium">{lesson.requesterName || "-"}</TableCell>
                     <TableCell className="text-center">{lesson.consultantName || "-"}</TableCell>
                     <TableCell className="text-center">
@@ -777,24 +851,27 @@ export const LessonManagement = () => {
                     <TableCell className="text-center max-w-[200px] truncate">{lesson.locationName || "-"}</TableCell>
                     <TableCell className="text-center whitespace-nowrap">{lesson.lessonDuration || lesson.customDuration || "-"}</TableCell>
                     <TableCell className="text-center">{getStatusBadge(lesson.status)}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openEditDialog(lesson)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openDeleteDialog(lesson.id)}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEditDialog(lesson)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => openDeleteDialog(lesson.id)}
+                            className="text-red-600 focus:text-red-600"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Excluir
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -979,8 +1056,7 @@ export const LessonManagement = () => {
                 value={newLesson.needsProfessor} 
                 onValueChange={(value) => setNewLesson(prev => ({ 
                   ...prev, 
-                  needsProfessor: value,
-                  ...(value !== "Não" && value !== "Outro" ? { professorId: "", professorName: "", professorPaymentValue: undefined } : {})
+                  needsProfessor: value
                 }))}
               >
                 <div className="flex items-center space-x-2">
@@ -996,50 +1072,64 @@ export const LessonManagement = () => {
                   <Label htmlFor="needsProfessor-outro" className="cursor-pointer">Outro</Label>
                 </div>
               </RadioGroup>
-              {(newLesson.needsProfessor === "Não" || newLesson.needsProfessor === "Outro") && (
-                <div className="mt-2 space-y-2">
-                  <Select
-                    value={newLesson.professorId || ""}
-                    onValueChange={(value) => {
-                      const teacher = teachers.find(t => t.uid === value || t.id === value);
+              <div className="mt-2 space-y-2">
+                <Label>
+                  {newLesson.needsProfessor === "Sim" 
+                    ? "Vincular a um professor disponível (opcional)" 
+                    : "Professor que irá ministrar a aula"}
+                  {(newLesson.needsProfessor === "Não" || newLesson.needsProfessor === "Outro") && <span className="text-red-500"> *</span>}
+                </Label>
+                <Select
+                  value={newLesson.professorId || (newLesson.needsProfessor === "Sim" ? "__none__" : "")}
+                  onValueChange={(value) => {
+                    if (value === "__none__") {
                       setNewLesson(prev => ({
                         ...prev,
-                        professorId: value,
-                        professorName: teacher?.fullName || "",
-                        professorPaymentValue: teacher?.defaultPaymentValue ?? prev.professorPaymentValue ?? 0
+                        professorId: "",
+                        professorName: "",
+                        professorPaymentValue: undefined
                       }));
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o professor" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {teachers.map((t) => (
-                        <SelectItem key={t.id} value={t.uid}>
-                          {t.fullName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {newLesson.professorId && (
-                    <div className="grid gap-2">
-                      <Label htmlFor="professorPaymentValue">Valor a pagar ao professor (R$)</Label>
-                      <Input
-                        id="professorPaymentValue"
-                        type="number"
-                        placeholder="0,00"
-                        min={0}
-                        step={0.01}
-                        value={newLesson.professorPaymentValue ?? ""}
-                        onChange={(e) => setNewLesson(prev => ({
-                          ...prev,
-                          professorPaymentValue: parseFloat(e.target.value) || undefined
-                        }))}
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
+                      return;
+                    }
+                    const teacher = teachers.find(t => t.uid === value || t.id === value);
+                    setNewLesson(prev => ({
+                      ...prev,
+                      professorId: value,
+                      professorName: teacher?.fullName || "",
+                      professorPaymentValue: teacher?.defaultPaymentValue ?? prev.professorPaymentValue ?? 0
+                    }));
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={teachers.length > 0 ? "Selecione o professor" : "Nenhum professor disponível"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {newLesson.needsProfessor === "Sim" && <SelectItem value="__none__">Nenhum</SelectItem>}
+                    {teachers.filter((t) => t.uid && t.id).map((t) => (
+                      <SelectItem key={t.id} value={t.uid}>
+                        {t.fullName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {newLesson.professorId && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="professorPaymentValue">Valor a pagar ao professor (R$)</Label>
+                    <Input
+                      id="professorPaymentValue"
+                      type="number"
+                      placeholder="0,00"
+                      min={0}
+                      step={0.01}
+                      value={newLesson.professorPaymentValue ?? ""}
+                      onChange={(e) => setNewLesson(prev => ({
+                        ...prev,
+                        professorPaymentValue: parseFloat(e.target.value) || undefined
+                      }))}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Quantos Alunos */}
@@ -1262,13 +1352,15 @@ export const LessonManagement = () => {
                   </div>
                 )}
 
-                {/* Materiais Calculados - Fase Cirúrgica */}
-                {newLesson.lessonTheme === "Fase Cirúrgica" && newLesson.calculatedMaterials && (
+                {/* Materiais Calculados - Fase Cirúrgica, Cirurgia Guiada, Zigomático */}
+                {["Fase Cirúrgica", "Cirurgia Guiada", "Zigomático"].includes(newLesson.lessonTheme) && newLesson.calculatedMaterials && (
                   <div className="mt-4 p-4 bg-white dark:bg-gray-900 rounded-lg border">
                     <div className="font-semibold mb-3">Materiais Calculados Automaticamente:</div>
                     <div className="space-y-2 text-sm">
                       <div>
-                        <span className="font-medium">Maxilas:</span>
+                        <span className="font-medium">
+                          {newLesson.lessonTheme === "Zigomático" ? "Crânios:" : newLesson.lessonTheme === "Cirurgia Guiada" ? "Modelo (mandíbula):" : "Maxilas:"}
+                        </span>
                         <span className="text-gray-600 dark:text-gray-400 ml-2">
                           {newLesson.calculatedMaterials.maxillasPerStudent} por aluno
                           {newLesson.numberOfStudents && parseInt(newLesson.numberOfStudents) > 0 && (
@@ -1279,14 +1371,16 @@ export const LessonManagement = () => {
                       <div>
                         <span className="font-medium">Implantes:</span>
                         <span className="text-gray-600 dark:text-gray-400 ml-2">
-                          {newLesson.calculatedMaterials.implantsPerStudent} por aluno
+                          {newLesson.lessonTheme === "Zigomático" ? "1 de cada modelo por aluno" : `${newLesson.calculatedMaterials.implantsPerStudent} por aluno`}
                           {newLesson.numberOfStudents && parseInt(newLesson.numberOfStudents) > 0 && (
                             <> = {newLesson.calculatedMaterials.totalImplants} unidades ({newLesson.numberOfStudents} alunos)</>
                           )}
                         </span>
-                        <div className="text-xs text-gray-500 dark:text-gray-500 mt-1 ml-4">
-                          Tipos: {newLesson.calculatedMaterials.implantTypes.join(", ")}
-                        </div>
+                        {newLesson.calculatedMaterials.implantTypes?.length > 0 && (
+                          <div className="text-xs text-gray-500 dark:text-gray-500 mt-1 ml-4">
+                            Tipos: {newLesson.calculatedMaterials.implantTypes.join(", ")}
+                          </div>
+                        )}
                       </div>
                       <div>
                         <span className="font-medium">Motores:</span>
@@ -1320,11 +1414,26 @@ export const LessonManagement = () => {
                   <SelectValue placeholder="Selecione um curso" />
                 </SelectTrigger>
                 <SelectContent>
-                  {courses.map((course) => (
+                  {courses.filter((c) => c.id).map((course) => (
                     <SelectItem key={course.id} value={course.id}>
                       {course.title}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Status */}
+            <div className="space-y-2">
+              <Label htmlFor="status">Status</Label>
+              <Select value={newLesson.status} onValueChange={(value: 'active' | 'inactive' | 'draft') => setNewLesson(prev => ({ ...prev, status: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="draft">Rascunho</SelectItem>
+                  <SelectItem value="active">Ativo</SelectItem>
+                  <SelectItem value="inactive">Inativo</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1515,8 +1624,7 @@ export const LessonManagement = () => {
                 value={newLesson.needsProfessor} 
                 onValueChange={(value) => setNewLesson(prev => ({ 
                   ...prev, 
-                  needsProfessor: value,
-                  ...(value !== "Não" && value !== "Outro" ? { professorId: "", professorName: "", professorPaymentValue: undefined } : {})
+                  needsProfessor: value
                 }))}
               >
                 <div className="flex items-center space-x-2">
@@ -1532,50 +1640,64 @@ export const LessonManagement = () => {
                   <Label htmlFor="edit-needsProfessor-outro" className="cursor-pointer">Outro</Label>
                 </div>
               </RadioGroup>
-              {(newLesson.needsProfessor === "Não" || newLesson.needsProfessor === "Outro") && (
-                <div className="mt-2 space-y-2">
-                  <Select
-                    value={newLesson.professorId || ""}
-                    onValueChange={(value) => {
-                      const teacher = teachers.find(t => t.uid === value || t.id === value);
+              <div className="mt-2 space-y-2">
+                <Label>
+                  {newLesson.needsProfessor === "Sim" 
+                    ? "Vincular a um professor disponível (opcional)" 
+                    : "Professor que irá ministrar a aula"}
+                  {(newLesson.needsProfessor === "Não" || newLesson.needsProfessor === "Outro") && <span className="text-red-500"> *</span>}
+                </Label>
+                <Select
+                  value={newLesson.professorId || (newLesson.needsProfessor === "Sim" ? "__none__" : "")}
+                  onValueChange={(value) => {
+                    if (value === "__none__") {
                       setNewLesson(prev => ({
                         ...prev,
-                        professorId: value,
-                        professorName: teacher?.fullName || "",
-                        professorPaymentValue: teacher?.defaultPaymentValue ?? prev.professorPaymentValue ?? 0
+                        professorId: "",
+                        professorName: "",
+                        professorPaymentValue: undefined
                       }));
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o professor" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {teachers.map((t) => (
-                        <SelectItem key={t.id} value={t.uid}>
-                          {t.fullName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {newLesson.professorId && (
-                    <div className="grid gap-2">
-                      <Label htmlFor="edit-professorPaymentValue">Valor a pagar ao professor (R$)</Label>
-                      <Input
-                        id="edit-professorPaymentValue"
-                        type="number"
-                        placeholder="0,00"
-                        min={0}
-                        step={0.01}
-                        value={newLesson.professorPaymentValue ?? ""}
-                        onChange={(e) => setNewLesson(prev => ({
-                          ...prev,
-                          professorPaymentValue: parseFloat(e.target.value) || undefined
-                        }))}
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
+                      return;
+                    }
+                    const teacher = teachers.find(t => t.uid === value || t.id === value);
+                    setNewLesson(prev => ({
+                      ...prev,
+                      professorId: value,
+                      professorName: teacher?.fullName || "",
+                      professorPaymentValue: teacher?.defaultPaymentValue ?? prev.professorPaymentValue ?? 0
+                    }));
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={teachers.length > 0 ? "Selecione o professor" : "Nenhum professor disponível"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {newLesson.needsProfessor === "Sim" && <SelectItem value="__none__">Nenhum</SelectItem>}
+                    {teachers.filter((t) => t.uid && t.id).map((t) => (
+                      <SelectItem key={t.id} value={t.uid}>
+                        {t.fullName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {newLesson.professorId && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-professorPaymentValue">Valor a pagar ao professor (R$)</Label>
+                    <Input
+                      id="edit-professorPaymentValue"
+                      type="number"
+                      placeholder="0,00"
+                      min={0}
+                      step={0.01}
+                      value={newLesson.professorPaymentValue ?? ""}
+                      onChange={(e) => setNewLesson(prev => ({
+                        ...prev,
+                        professorPaymentValue: parseFloat(e.target.value) || undefined
+                      }))}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Quantos Alunos */}
@@ -1796,13 +1918,15 @@ export const LessonManagement = () => {
                   </div>
                 )}
 
-                {/* Materiais Calculados - Fase Cirúrgica */}
-                {newLesson.lessonTheme === "Fase Cirúrgica" && newLesson.calculatedMaterials && (
+                {/* Materiais Calculados - Fase Cirúrgica, Cirurgia Guiada, Zigomático */}
+                {["Fase Cirúrgica", "Cirurgia Guiada", "Zigomático"].includes(newLesson.lessonTheme) && newLesson.calculatedMaterials && (
                   <div className="mt-4 p-4 bg-white dark:bg-gray-900 rounded-lg border">
                     <div className="font-semibold mb-3">Materiais Calculados Automaticamente:</div>
                     <div className="space-y-2 text-sm">
                       <div>
-                        <span className="font-medium">Maxilas:</span>
+                        <span className="font-medium">
+                          {newLesson.lessonTheme === "Zigomático" ? "Crânios:" : newLesson.lessonTheme === "Cirurgia Guiada" ? "Modelo (mandíbula):" : "Maxilas:"}
+                        </span>
                         <span className="text-gray-600 dark:text-gray-400 ml-2">
                           {newLesson.calculatedMaterials.maxillasPerStudent} por aluno
                           {newLesson.numberOfStudents && parseInt(newLesson.numberOfStudents) > 0 && (
@@ -1813,14 +1937,16 @@ export const LessonManagement = () => {
                       <div>
                         <span className="font-medium">Implantes:</span>
                         <span className="text-gray-600 dark:text-gray-400 ml-2">
-                          {newLesson.calculatedMaterials.implantsPerStudent} por aluno
+                          {newLesson.lessonTheme === "Zigomático" ? "1 de cada modelo por aluno" : `${newLesson.calculatedMaterials.implantsPerStudent} por aluno`}
                           {newLesson.numberOfStudents && parseInt(newLesson.numberOfStudents) > 0 && (
                             <> = {newLesson.calculatedMaterials.totalImplants} unidades ({newLesson.numberOfStudents} alunos)</>
                           )}
                         </span>
-                        <div className="text-xs text-gray-500 dark:text-gray-500 mt-1 ml-4">
-                          Tipos: {newLesson.calculatedMaterials.implantTypes.join(", ")}
-                        </div>
+                        {newLesson.calculatedMaterials.implantTypes?.length > 0 && (
+                          <div className="text-xs text-gray-500 dark:text-gray-500 mt-1 ml-4">
+                            Tipos: {newLesson.calculatedMaterials.implantTypes.join(", ")}
+                          </div>
+                        )}
                       </div>
                       <div>
                         <span className="font-medium">Motores:</span>
@@ -1854,11 +1980,26 @@ export const LessonManagement = () => {
                   <SelectValue placeholder="Selecione um curso" />
                 </SelectTrigger>
                 <SelectContent>
-                  {courses.map((course) => (
+                  {courses.filter((c) => c.id).map((course) => (
                     <SelectItem key={course.id} value={course.id}>
                       {course.title}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Status */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-status">Status</Label>
+              <Select value={newLesson.status} onValueChange={(value: 'active' | 'inactive' | 'draft') => setNewLesson(prev => ({ ...prev, status: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="draft">Rascunho</SelectItem>
+                  <SelectItem value="active">Ativo</SelectItem>
+                  <SelectItem value="inactive">Inativo</SelectItem>
                 </SelectContent>
               </Select>
             </div>

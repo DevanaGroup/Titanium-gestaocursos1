@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { FileText, Download, Plus, Trash, Edit, FolderPlus, Bell, User, ChevronUp, ChevronDown, Search } from 'lucide-react';
+import { FileText, Download, Plus, Trash, Edit, FolderPlus, Bell, User, ChevronUp, ChevronDown, Search, MoreVertical } from 'lucide-react';
 import CustomSidebar from '@/components/CustomSidebar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -606,23 +606,26 @@ const DocumentsManager = () => {
                                         <TableCell>{doc.subCategoriaNome || "N/A"}</TableCell>
                                         <TableCell>{doc.uploadDate}</TableCell>
                                         <TableCell>
-                                          <div className="flex items-center gap-2">
-                                            <Button 
-                                              variant="ghost" 
-                                              size="icon"
-                                              onClick={() => handleDownloadDocument(doc.url, doc.name)}
-                                            >
-                                              <Download className="h-4 w-4" />
-                                            </Button>
-                                            <Button 
-                                              variant="ghost" 
-                                              size="icon"
-                                              onClick={() => handleDeleteDocumentConfirm(doc)}
-                                              className="text-red-500 hover:text-red-700 hover:bg-red-100"
-                                            >
-                                              <Trash className="h-4 w-4" />
-                                            </Button>
-                                          </div>
+                                          <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                                <MoreVertical className="h-4 w-4" />
+                                              </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                              <DropdownMenuItem onClick={() => handleDownloadDocument(doc.url, doc.name)}>
+                                                <Download className="mr-2 h-4 w-4" />
+                                                Download
+                                              </DropdownMenuItem>
+                                              <DropdownMenuItem
+                                                onClick={() => handleDeleteDocumentConfirm(doc)}
+                                                className="text-red-600 focus:text-red-600"
+                                              >
+                                                <Trash className="mr-2 h-4 w-4" />
+                                                Excluir
+                                              </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                          </DropdownMenu>
                                         </TableCell>
                                       </TableRow>
                                     ))}
@@ -676,19 +679,27 @@ const DocumentsManager = () => {
                         {categorias.map((categoria) => (
                           <TableRow key={categoria.id}>
                             <TableCell>{categoria.nome}</TableCell>
-                            <TableCell className="flex gap-2">
-                              <Button 
-                                variant="ghost"
-                                onClick={() => setEditandoCategoria(categoria)}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button 
-                                variant="ghost"
-                                onClick={() => handleDeleteCategoryConfirm(categoria)}
-                              >
-                                <Trash className="h-4 w-4" />
-                              </Button>
+                            <TableCell>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => setEditandoCategoria(categoria)}>
+                                    <Edit className="mr-2 h-4 w-4" />
+                                    Editar
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => handleDeleteCategoryConfirm(categoria)}
+                                    className="text-red-600 focus:text-red-600"
+                                  >
+                                    <Trash className="mr-2 h-4 w-4" />
+                                    Excluir
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -759,19 +770,27 @@ const DocumentsManager = () => {
                               <TableCell>
                                 {categorias.find(cat => cat.id === subCategoria.categoriaId)?.nome || "N/A"}
                               </TableCell>
-                              <TableCell className="flex gap-2">
-                                <Button 
-                                  variant="ghost"
-                                  onClick={() => setEditandoSubCategoria(subCategoria)}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button 
-                                  variant="ghost"
-                                  onClick={() => handleDeleteSubcategoryConfirm(subCategoria)}
-                                >
-                                  <Trash className="h-4 w-4" />
-                                </Button>
+                              <TableCell>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                      <MoreVertical className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => setEditandoSubCategoria(subCategoria)}>
+                                      <Edit className="mr-2 h-4 w-4" />
+                                      Editar
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() => handleDeleteSubcategoryConfirm(subCategoria)}
+                                      className="text-red-600 focus:text-red-600"
+                                    >
+                                      <Trash className="mr-2 h-4 w-4" />
+                                      Excluir
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                               </TableCell>
                             </TableRow>
                           ))}

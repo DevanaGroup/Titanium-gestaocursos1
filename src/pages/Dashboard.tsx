@@ -35,10 +35,6 @@ import { FinancialExpenses } from "@/components/FinancialExpenses";
 import { FinancialReports } from "@/components/FinancialReports";
 import { TeacherPaymentsModule } from "@/components/financial/TeacherPaymentsModule";
 import Presets from "./Presets";
-import Projects from "./Projects";
-import ProjectWrite from "./ProjectWrite";
-import ProjectView from "./ProjectView";
-import ProjectMap from "./ProjectMap";
 import { updateProfile, onAuthStateChanged } from "firebase/auth";
 import { useTabCloseLogout } from "@/hooks/useTabCloseLogout";
 import { getAuth, signOut } from "firebase/auth";
@@ -48,9 +44,6 @@ import { doc, getDoc, updateDoc, setDoc, collection, getDocs, query, where, serv
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { hasPermission, hasFinancialAccess } from "@/utils/hierarchyUtils";
 import { HierarchyLevel } from "@/types";
-import SettingsManager from "@/components/SettingsManager";
-import { SupportMainPage } from "@/components/support/SupportMainPage";
-import { SupportNotifications } from "@/components/support/SupportNotifications";
 
 interface UserData {
   name: string;
@@ -66,7 +59,7 @@ const Dashboard = () => {
   const location = useLocation();
   // REMOVIDO: const { rightAction } = useHeaderActions();
   const isMobile = useIsMobile();
-  const [activeTab, setActiveTab] = useState<"home" | "collaborators" | "clients" | "calendar" | "eventos" | "tasks" | "tasks-archived" | "chatbot" | "expense-requests" | "financial-incomes" | "financial-expenses" | "financial-teacher-payments" | "financial-reports" | "support-web" | "settings" | "presets" | "projetos" | "project-write" | "project-view" | "project-map" | "courses" | "lessons" | "teachers">("home");
+  const [activeTab, setActiveTab] = useState<"home" | "collaborators" | "clients" | "calendar" | "eventos" | "tasks" | "tasks-archived" | "chatbot" | "expense-requests" | "financial-incomes" | "financial-expenses" | "financial-teacher-payments" | "financial-reports" | "presets" | "courses" | "lessons" | "teachers">("home");
   const [avatarUrl, setAvatarUrl] = useState("/placeholder.svg");
   const [isAvatarDialogOpen, setIsAvatarDialogOpen] = useState(false);
   const [userData, setUserData] = useState<UserData>({
@@ -86,29 +79,9 @@ const Dashboard = () => {
     if (location.state && location.state.activeTab) {
       setActiveTab(location.state.activeTab);
     }
-    // Verificar se está nas rotas de presets ou projetos e ajustar a tab
+    // Verificar se está nas rotas de presets e ajustar a tab
     if (location.pathname.startsWith('/presets')) {
       setActiveTab('presets');
-    } else if (location.pathname.startsWith('/projetos/')) {
-      // Se for /projetos/:id/map, é mapa
-      if (location.pathname.endsWith('/map')) {
-        setActiveTab('project-map');
-      }
-      // Se for /projetos/:id/edit, é edição
-      else if (location.pathname.endsWith('/edit')) {
-        setActiveTab('project-write');
-      } 
-      // Se for /projetos/:id (sem /edit e sem /map), é visualização
-      else {
-        const pathMatch = location.pathname.match(/^\/projetos\/(.+)$/);
-        if (pathMatch && pathMatch[1] && pathMatch[1] !== 'edit' && pathMatch[1] !== 'map') {
-          setActiveTab('project-view');
-        } else {
-          setActiveTab('projetos');
-        }
-      }
-    } else if (location.pathname.startsWith('/projetos')) {
-      setActiveTab('projetos');
     } else if (location.pathname === '/tasks/archived') {
       setActiveTab('tasks-archived');
     } else if (location.pathname === '/tasks') {
@@ -146,41 +119,35 @@ const Dashboard = () => {
       if (user) {
         setUser(user);
 
-        // Buscar dados do usuário no Firestore - priorizar coleção unificada
+        // Buscar dados do usuário no Firestore - priorizar coleção users (fonte autoritativa para hierarchyLevel)
         let userData = null;
         
-        // Tentar buscar na coleção unificada primeiro
-        const unifiedDoc = await getDoc(doc(db, "collaborators_unified", user.uid));
-        if (unifiedDoc.exists()) {
-          userData = unifiedDoc.data();
-          // Mostrar apenas o firstName
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        if (userDoc.exists()) {
+          userData = userDoc.data();
           const displayName = userData.firstName || "Usuário";
-          
-          // Usar hierarchyLevel diretamente do documento
           const hierarchyLevel = userData.hierarchyLevel || "Estagiário/Auxiliar";
           
           setUserData({
             name: displayName,
             role: hierarchyLevel,
-            avatar: userData.avatar || userData.photoURL || "/placeholder.svg"
+            avatar: userData.photoURL || userData.avatar || "/placeholder.svg"
           });
           
           setEditableFirstName(userData.firstName || "");
           setEditableLastName(userData.lastName || "");
         } else {
-          // Fallback: tentar buscar na coleção users
-          console.log("⚠️ Dashboard - Usuário não encontrado em collaborators_unified, tentando users...");
-          const userDoc = await getDoc(doc(db, "users", user.uid));
-          if (userDoc.exists()) {
-            userData = userDoc.data();
-            console.log("✅ Dashboard - Usuário encontrado na coleção users");
+          // Fallback: tentar coleção collaborators_unified
+          const unifiedDoc = await getDoc(doc(db, "collaborators_unified", user.uid));
+          if (unifiedDoc.exists()) {
+            userData = unifiedDoc.data();
             const displayName = userData.firstName || "Usuário";
             const hierarchyLevel = userData.hierarchyLevel || "Estagiário/Auxiliar";
             
             setUserData({
               name: displayName,
               role: hierarchyLevel,
-              avatar: userData.photoURL || "/placeholder.svg"
+              avatar: userData.avatar || userData.photoURL || "/placeholder.svg"
             });
             
             setEditableFirstName(userData.firstName || "");
@@ -303,33 +270,55 @@ const Dashboard = () => {
       if (!currentUser) {
         toast.dismiss();
         toast.error("Usuário não autenticado");
-        return;
+        return false;
       }
-      
-      // Atualizar apenas na coleção unificada
-      const collaboratorDocRef = doc(db, 'collaborators_unified', currentUser.uid);
-      await updateDoc(collaboratorDocRef, {
-        photoURL: base64Image,
-        avatar: base64Image,
-        updatedAt: new Date()
-      });
-      
-      // Tentar atualizar no Authentication (pode falhar se ainda estiver muito grande)
-      try {
-        await updateProfile(currentUser, {
-          photoURL: base64Image
+
+      // Converter base64 para Blob e fazer upload no Firebase Storage (URL curta - Firebase Auth não aceita base64)
+      const base64ToBlob = (base64: string): Blob => {
+        const parts = base64.split(';base64,');
+        const contentType = parts[0].split(':')[1] || 'image/jpeg';
+        const raw = window.atob(parts[1]);
+        const uInt8Array = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; ++i) uInt8Array[i] = raw.charCodeAt(i);
+        return new Blob([uInt8Array], { type: contentType });
+      };
+
+      const blob = base64ToBlob(base64Image);
+      const fileName = `avatar_${Date.now()}.jpg`;
+      const storageRef = ref(storage, `avatars/${currentUser.uid}/${fileName}`);
+      await uploadBytes(storageRef, blob);
+      const downloadURL = await getDownloadURL(storageRef);
+
+      // 1. Atualizar coleção users (fonte autoritativa - inclui Nível 0)
+      const userDocRef = doc(db, 'users', currentUser.uid);
+      const userDoc = await getDoc(userDocRef);
+      if (userDoc.exists()) {
+        await updateDoc(userDocRef, {
+          photoURL: downloadURL,
+          avatar: downloadURL,
+          updatedAt: serverTimestamp()
         });
-      } catch (authError) {
-        console.error("Erro ao atualizar avatar no Authentication:", authError);
-        // Continuar mesmo se falhar no Auth, já que a imagem foi salva no Firestore
       }
-      
-      // Atualizar estado local
-      setUserData(prev => ({
-        ...prev,
-        avatar: base64Image
-      }));
-      
+
+      // 2. Atualizar collaborators_unified se existir e tiver permissão
+      try {
+        const collaboratorDocRef = doc(db, 'collaborators_unified', currentUser.uid);
+        const collaboratorDoc = await getDoc(collaboratorDocRef);
+        if (collaboratorDoc.exists()) {
+          await updateDoc(collaboratorDocRef, {
+            photoURL: downloadURL,
+            avatar: downloadURL,
+            updatedAt: serverTimestamp()
+          });
+        }
+      } catch {
+        // Usuário pode não ter permissão para atualizar collaborators_unified; users é a fonte principal
+      }
+
+      // 3. Atualizar Firebase Auth (URL é curta, base64 seria rejeitado)
+      await updateProfile(currentUser, { photoURL: downloadURL });
+
+      setUserData(prev => ({ ...prev, avatar: downloadURL }));
       return true;
     } catch (error) {
       console.error("Erro ao atualizar avatar:", error);
@@ -505,18 +494,6 @@ const Dashboard = () => {
                   </div>
                 )}
                 
-                {/* Notificações de Suporte - Oculto no mobile */}
-                {hasPermission(userData.role as HierarchyLevel, 'suporte_web') && (
-                  <div className="hidden md:block">
-                    <SupportNotifications 
-                      onNotificationClick={(ticketId) => {
-                        setActiveTab('support-web');
-                      }}
-                    />
-                  </div>
-                )}
-
-
                 {/* Avatar e Menu - Desktop */}
                 <div className="hidden md:block">
                   <DropdownMenu>
@@ -731,23 +708,6 @@ const Dashboard = () => {
                 </div>
               )
             )}
-            {activeTab === "support-web" && (
-              hasPermission(userData.role as HierarchyLevel, 'suporte_web') ? (
-                <SupportMainPage />
-              ) : (
-                <div className="h-full flex items-center justify-center flex-col">
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-8 text-center max-w-md">
-                    <h2 className="text-2xl font-semibold text-yellow-800 mb-4">Acesso Restrito</h2>
-                    <p className="text-yellow-700 mb-6">
-                      O sistema de suporte web não está disponível para seu nível hierárquico.
-                    </p>
-                    <p className="text-sm text-yellow-600">
-                      Entre em contato com seu superior hierárquico para solicitar acesso.
-                    </p>
-                  </div>
-                </div>
-              )
-            )}
             {activeTab === "courses" && (
               hasPermission(userData.role as HierarchyLevel, 'manage_department') ? (
                 <CourseManagement />
@@ -799,28 +759,7 @@ const Dashboard = () => {
                 </div>
               )
             )}
-            {activeTab === "settings" && (
-              hasPermission(userData.role as HierarchyLevel, 'settings_access') ? (
-                <SettingsManager />
-              ) : (
-                <div className="h-full flex items-center justify-center flex-col">
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-8 text-center max-w-md">
-                    <h2 className="text-2xl font-semibold text-yellow-800 mb-4">Acesso Restrito</h2>
-                    <p className="text-yellow-700 mb-6">
-                      As configurações do sistema estão disponíveis apenas para Presidente e Diretor de TI.
-                    </p>
-                    <p className="text-sm text-yellow-600">
-                      Entre em contato com seu superior hierárquico para solicitar acesso.
-                    </p>
-                  </div>
-                </div>
-              )
-            )}
             {activeTab === "presets" && <Presets />}
-            {activeTab === "projetos" && <Projects />}
-            {activeTab === "project-write" && <ProjectWrite />}
-            {activeTab === "project-view" && <ProjectView />}
-            {activeTab === "project-map" && <ProjectMap />}
           </main>
         </div>
       </div>

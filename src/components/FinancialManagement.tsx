@@ -53,8 +53,15 @@ import {
   Building2,
   Filter,
   Search,
-  X
+  X,
+  MoreVertical
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Popover,
   PopoverContent,
@@ -684,58 +691,43 @@ export const FinancialManagement = () => {
                                     </Button>
                                   </>
                                 ) : (
-                                  <>
-                                    {client.status === 'Sem dados financeiros' ? (
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handleQuickEdit(client)}
-                                        title="Configurar dados financeiros"
-                                        className="text-blue-600 hover:text-blue-700 h-7 w-7 p-0"
-                                      >
-                                        <Settings className="w-3 h-3" />
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                        <MoreVertical className="h-4 w-4" />
                                       </Button>
-                                    ) : (
-                                      <>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => handleGenerateInvoice(client)}
-                                          title="Gerar NF e Boleto"
-                                          className="h-7 w-7 p-0"
-                                        >
-                                          <FileText className="w-3 h-3" />
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => handleMarkPayment(client)}
-                                          title="Marcar como Pago"
-                                          className="text-green-600 hover:text-green-700 h-7 w-7 p-0"
-                                        >
-                                          <CheckCircle className="w-3 h-3" />
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => handleQuickEdit(client)}
-                                          title="Editar dados financeiros"
-                                          className="h-7 w-7 p-0"
-                                        >
-                                          <Edit className="w-3 h-3" />
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => handleMarkAsDefaulting(client)}
-                                          title="Marcar como Inadimplente"
-                                          className="text-red-600 hover:text-red-700 h-7 w-7 p-0"
-                                        >
-                                          <AlertTriangle className="w-3 h-3" />
-                                        </Button>
-                                      </>
-                                    )}
-                                  </>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      {client.status === 'Sem dados financeiros' ? (
+                                        <DropdownMenuItem onClick={() => handleQuickEdit(client)}>
+                                          <Settings className="mr-2 h-4 w-4" />
+                                          Configurar dados financeiros
+                                        </DropdownMenuItem>
+                                      ) : (
+                                        <>
+                                          <DropdownMenuItem onClick={() => handleGenerateInvoice(client)}>
+                                            <FileText className="mr-2 h-4 w-4" />
+                                            Gerar NF e Boleto
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem onClick={() => handleMarkPayment(client)}>
+                                            <CheckCircle className="mr-2 h-4 w-4" />
+                                            Marcar como Pago
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem onClick={() => handleQuickEdit(client)}>
+                                            <Edit className="mr-2 h-4 w-4" />
+                                            Editar dados financeiros
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem
+                                            onClick={() => handleMarkAsDefaulting(client)}
+                                            className="text-red-600 focus:text-red-600"
+                                          >
+                                            <AlertTriangle className="mr-2 h-4 w-4" />
+                                            Marcar como Inadimplente
+                                          </DropdownMenuItem>
+                                        </>
+                                      )}
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
                                 )}
                               </div>
                             </TableCell>

@@ -19,11 +19,17 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { Search, Edit, Trash2, Plus, GraduationCap, Eye } from "lucide-react";
+import { Search, Edit, Trash2, Plus, GraduationCap, Eye, MoreVertical } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { db } from "@/config/firebase";
-import { collection, getDocs, addDoc, deleteDoc, doc, serverTimestamp, setDoc, query, orderBy } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, doc, serverTimestamp, setDoc, query, orderBy } from "firebase/firestore";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { useNavigate } from "react-router-dom";
 
@@ -70,10 +76,12 @@ export const CourseManagement = () => {
       const coursesQuery = query(coursesCollection, orderBy("createdAt", "desc"));
       const coursesSnapshot = await getDocs(coursesQuery);
       
-      const coursesList = coursesSnapshot.docs.map(doc => {
-        const data = doc.data();
+      const coursesList = coursesSnapshot.docs
+        .filter(d => !d.data().deletedAt)
+        .map(d => {
+        const data = d.data();
         return {
-          id: doc.id,
+          id: d.id,
           title: data.title,
           description: data.description || "",
           duration: data.duration || "",
@@ -122,6 +130,7 @@ export const CourseManagement = () => {
     try {
       const courseData = {
         ...newCourse,
+        deletedAt: null,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       };
@@ -154,6 +163,7 @@ export const CourseManagement = () => {
       const courseRef = doc(db, "courses", selectedCourse.id);
       await setDoc(courseRef, {
         ...newCourse,
+        deletedAt: null,
         updatedAt: serverTimestamp()
       }, { merge: true });
 
@@ -179,7 +189,10 @@ export const CourseManagement = () => {
     if (!selectedCourseForDeletion) return;
 
     try {
-      await deleteDoc(doc(db, "courses", selectedCourseForDeletion));
+      await updateDoc(doc(db, "courses", selectedCourseForDeletion), {
+        deletedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
       toast.success("Curso excluído com sucesso!");
       setIsDeleteConfirmOpen(false);
       setSelectedCourseForDeletion(null);
@@ -286,7 +299,11 @@ export const CourseManagement = () => {
               </TableHeader>
               <TableBody>
                 {filteredCourses.map((course) => (
-                  <TableRow key={course.id}>
+                  <TableRow
+                    key={course.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => navigate(`/courses/${course.id}`)}
+                  >
                     <TableCell className="text-center font-medium">
                       <div 
                         className="truncate max-w-[15ch] mx-auto" 
@@ -304,32 +321,31 @@ export const CourseManagement = () => {
                       {course.price ? `R$ ${course.price.toFixed(2)}` : "Gratuito"}
                     </TableCell>
                     <TableCell className="text-center">{getStatusBadge(course.status)}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => navigate(`/courses/${course.id}`)}
-                          title="Ver detalhes"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openEditDialog(course)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openDeleteDialog(course.id)}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/courses/${course.id}`); }}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            Visualizar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEditDialog(course); }}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(e) => { e.stopPropagation(); openDeleteDialog(course.id); }}
+                            className="text-red-600 focus:text-red-600"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Excluir
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))}

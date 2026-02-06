@@ -1,4 +1,5 @@
 export type HierarchyLevel = 
+  | "Nível 0"
   | "Nível 1"
   | "Nível 2"
   | "Nível 3"

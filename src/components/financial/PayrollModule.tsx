@@ -46,8 +46,15 @@ import {
   X,
   Settings,
   Save,
-  RefreshCw
+  RefreshCw,
+  MoreVertical
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { getRealCollaborators } from "@/services/financialCoreService";
 import { Collaborator } from "@/types";
@@ -1482,32 +1489,27 @@ export const PayrollModule = () => {
                         <TableCell className="font-semibold">{formatCurrency(record.netSalary)}</TableCell>
                         <TableCell>{getStatusBadge(record.status)}</TableCell>
                         <TableCell className="text-center">
-                          <div className="flex items-center justify-center space-x-2">
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => handleViewPayroll(record)}
-                              title="Visualizar detalhes"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => handleEditPayroll(record)}
-                              title="Editar registro"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => handleGeneratePayrollReport(record)}
-                              title="Gerar relatório"
-                            >
-                              <FileText className="w-4 h-4" />
-                            </Button>
-                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleViewPayroll(record)}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                Visualizar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleEditPayroll(record)}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleGeneratePayrollReport(record)}>
+                                <FileText className="mr-2 h-4 w-4" />
+                                Gerar relatório
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
                     ))}

@@ -1,7 +1,9 @@
 import { HierarchyLevel, CustomPermissions, Collaborator } from '@/types';
 
 // Hierarquia ordenada do mais alto para o mais baixo nível
+// Nível 0: apenas criado via banco de dados - acesso total ao sistema
 export const HIERARCHY_LEVELS: HierarchyLevel[] = [
+  "Nível 0",
   "Nível 1",
   "Nível 2",
   "Nível 3",
@@ -10,9 +12,12 @@ export const HIERARCHY_LEVELS: HierarchyLevel[] = [
   "Nível 6"
 ];
 
-// Extrair número do nível (ex: "Nível 1" -> 1)
+// Níveis disponíveis para criação via UI (exclui Nível 0 - apenas via banco)
+export const HIERARCHY_LEVELS_FOR_CREATION: HierarchyLevel[] = HIERARCHY_LEVELS.filter(l => l !== "Nível 0");
+
+// Extrair número do nível (ex: "Nível 1" -> 1, "Nível 0" -> 0)
 export const getLevelNumber = (level: HierarchyLevel): number => {
-  const match = level.match(/\d+/);
+  const match = level?.match(/\d+/);
   return match ? parseInt(match[0], 10) : 5; // Default para nível mais baixo se não encontrar
 };
 
@@ -26,18 +31,18 @@ export const hasHierarchicalPermission = (userLevel: HierarchyLevel, targetLevel
   const userLevelNum = getLevelNumber(userLevel);
   const targetLevelNum = getLevelNumber(targetLevel);
   
-  // Níveis menores = maior autoridade (Nível 1 > Nível 2 > ... > Nível 5)
+  // Níveis menores = maior autoridade (Nível 0 > Nível 1 > Nível 2 > ... > Nível 6)
   return userLevelNum < targetLevelNum;
 };
 
 // Verificar se um usuário pode criar/gerenciar outro nível
 export const canManageLevel = (userLevel: HierarchyLevel, targetLevel: HierarchyLevel): boolean => {
-  // Nível 1 pode criar qualquer nível, incluindo outro Nível 1
-  if (userLevel === "Nível 1") {
+  // Nível 0 e Nível 1 podem criar/gerenciar qualquer nível
+  if (userLevel === "Nível 0" || userLevel === "Nível 1") {
     return true;
   }
   
-  // Ninguém pode gerenciar usuários do mesmo nível (exceto Nível 1)
+  // Ninguém pode gerenciar usuários do mesmo nível (exceto Nível 0 e Nível 1)
   if (userLevel === targetLevel) {
     return false;
   }
@@ -50,13 +55,10 @@ export const canManageLevel = (userLevel: HierarchyLevel, targetLevel: Hierarchy
 export const hasPermission = (userLevel: HierarchyLevel, permission: string): boolean => {
   const levelNum = getLevelNumber(userLevel);
   
-  // Permissões baseadas apenas no número do nível
-  // Nível 1 tem todas as permissões
-  // Nível 2 tem permissões altas
-  // Nível 3 tem permissões intermediárias
-  // Nível 4 tem permissões básicas
-  // Nível 5 tem permissões mínimas
+  // Nível 0 tem acesso total a tudo (apenas criado via banco de dados)
+  if (levelNum === 0) return true;
   
+  // Permissões baseadas no número do nível
   switch (permission) {
     case 'manage_department':
     case 'manage_all_users':
@@ -78,10 +80,10 @@ export const hasPermission = (userLevel: HierarchyLevel, permission: string): bo
       return true; // Todos têm acesso ao suporte
       
     case 'settings_access':
-      return levelNum === 1; // Apenas Nível 1 tem acesso às configurações
+      return levelNum <= 1; // Níveis 0 e 1 têm acesso às configurações
       
     case 'technical_checklist_access':
-      return levelNum <= 4; // Níveis 1-4 têm acesso ao checklist técnico
+      return levelNum <= 4; // Níveis 0-4 têm acesso ao checklist técnico
       
     case 'view_own_data':
     case 'create_expense_requests':
@@ -96,13 +98,13 @@ export const hasPermission = (userLevel: HierarchyLevel, permission: string): bo
 export const getManagedLevels = (userLevel: HierarchyLevel): HierarchyLevel[] => {
   const levelNum = getLevelNumber(userLevel);
   
-  // Nível 1 pode criar qualquer nível, incluindo outro Nível 1
-  if (levelNum === 1) {
-    return HIERARCHY_LEVELS;
+  // Nível 0 e Nível 1 podem criar qualquer nível
+  if (levelNum <= 1) {
+    return HIERARCHY_LEVELS_FOR_CREATION; // Exclui Nível 0 da lista de criação
   }
   
   // Outros níveis podem gerenciar níveis inferiores
-  return HIERARCHY_LEVELS.filter(level => hasHierarchicalPermission(userLevel, level));
+  return HIERARCHY_LEVELS_FOR_CREATION.filter(level => hasHierarchicalPermission(userLevel, level));
 };
 
 // Obter descrição do nível hierárquico
@@ -110,6 +112,7 @@ export const getHierarchyDescription = (level: HierarchyLevel): string => {
   const levelNum = getLevelNumber(level);
   
   const descriptions: Record<number, string> = {
+    0: "👑 Nível máximo - Acesso total ao sistema (apenas via banco de dados)",
     1: "🔝 Máximo de permissões - Acesso total ao sistema",
     2: "📊 Alto nível de permissões - Gestão e aprovações",
     3: "⚙️ Permissões intermediárias - Visualização e operações",
@@ -126,6 +129,7 @@ export const getHierarchyColor = (level: HierarchyLevel): string => {
   const levelNum = getLevelNumber(level);
   
   const colors: Record<number, string> = {
+    0: "bg-amber-500 text-white",
     1: "bg-purple-500 text-white",
     2: "bg-blue-500 text-white",
     3: "bg-green-500 text-white",
@@ -140,7 +144,7 @@ export const getHierarchyColor = (level: HierarchyLevel): string => {
 // Verificar se usuário pode gerenciar permissões de outros
 export const canManagePermissions = (userLevel: HierarchyLevel): boolean => {
   const levelNum = getLevelNumber(userLevel);
-  return levelNum <= 2; // Apenas Níveis 1 e 2 podem gerenciar permissões
+  return levelNum <= 2; // Níveis 0, 1 e 2 podem gerenciar permissões
 };
 
 // Obter permissões padrão para um nível hierárquico
@@ -190,19 +194,19 @@ export const hasCustomPermission = (
 // Verificar se usuário tem acesso ao ChatBot
 export const hasChatbotAccess = (userLevel: HierarchyLevel): boolean => {
   const levelNum = getLevelNumber(userLevel);
-  return levelNum <= 2; // Apenas Níveis 1 e 2
+  return levelNum <= 2; // Níveis 0, 1 e 2
 };
 
 // Verificar se usuário tem acesso a Relatórios e Financeiro
 export const hasFinancialAccess = (userLevel: HierarchyLevel): boolean => {
   const levelNum = getLevelNumber(userLevel);
-  return levelNum <= 3; // Níveis 1-3
+  return levelNum <= 3; // Níveis 0-3
 };
 
 // Verificar se usuário tem acesso às Configurações
 export const hasSettingsAccess = (userLevel: HierarchyLevel): boolean => {
   const levelNum = getLevelNumber(userLevel);
-  return levelNum === 1; // Apenas Nível 1
+  return levelNum <= 1; // Níveis 0 e 1
 };
 
 // Verificar se usuário pode visualizar um cliente específico
@@ -225,7 +229,7 @@ export const normalizeHierarchyLevel = (level: string | HierarchyLevel | null | 
   if (!level) return "Nível 5";
   
   // Se já é um HierarchyLevel válido, retorna
-  if (level === "Nível 1" || level === "Nível 2" || level === "Nível 3" || level === "Nível 4" || level === "Nível 5" || level === "Nível 6") {
+  if (level === "Nível 0" || level === "Nível 1" || level === "Nível 2" || level === "Nível 3" || level === "Nível 4" || level === "Nível 5" || level === "Nível 6") {
     return level;
   }
   
