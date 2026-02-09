@@ -21,6 +21,7 @@ import { checkAndSendAgendaNotifications } from "./agendaNotificationService";
 import { sendEventCreatedNotification } from "./agendaEmailService";
 import { checkAndSendFinancialNotifications, sendDailyFinancialReport } from "./financialNotificationService";
 import { Task } from "./types";
+import cors from "cors";
 
 // Inicializa o Firebase Admin
 admin.initializeApp();
@@ -980,35 +981,18 @@ async function getEventCollaboratorsByIds(ids: string[]): Promise<any[]> {
 }
 
 /**
- * Função para criar usuário no Firebase Auth (v1)
- * Usado pelos administradores para criar novos colaboradores
+ * Função para criar usuário no Firebase Auth (1st Gen + CORS)
+ * Usado pelos administradores para criar novos colaboradores.
+ * cors({ origin: true }) trata preflight (OPTIONS) para localhost e outros domínios.
  */
-// Helper function para aplicar headers CORS
-const setCorsHeaders = (response: any) => {
-  response.set('Access-Control-Allow-Origin', '*');
-  response.set('Access-Control-Allow-Methods', 'POST, OPTIONS, GET');
-  response.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-  response.set('Access-Control-Max-Age', '3600');
-};
-
-export const createUserAuth = functions.https.onRequest(async (request, response) => {
-  // Aplicar headers CORS imediatamente
-  setCorsHeaders(response);
-
-  // Responder imediatamente para requisições OPTIONS (preflight)
-  if (request.method === 'OPTIONS') {
-    response.status(204).send('');
-    return;
-  }
-
-    // Verifica se é uma requisição POST
-    if (request.method !== 'POST') {
-      setCorsHeaders(response);
-      response.status(405).json({ error: "Método não permitido. Use POST." });
-      return;
-    }
-
-  try {
+export const createUserAuth = functions.https.onRequest((request, response) => {
+  cors({ origin: true })(request, response, () => {
+    void (async () => {
+      if (request.method !== "POST") {
+        response.status(405).json({ error: "Método não permitido. Use POST." });
+        return;
+      }
+      try {
     functions.logger.info("Iniciando criação de usuário", {
       method: request.method,
       hasBody: !!request.body
@@ -1018,7 +1002,6 @@ export const createUserAuth = functions.https.onRequest(async (request, response
     const authHeader = request.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       functions.logger.warn("Token de autorização não fornecido");
-      setCorsHeaders(response);
       response.status(401).json({ error: "Token de autorização requerido" });
       return;
     }
@@ -1032,7 +1015,6 @@ export const createUserAuth = functions.https.onRequest(async (request, response
       functions.logger.info("Token verificado com sucesso", { uid: decodedToken.uid });
     } catch (tokenError: any) {
       functions.logger.error("Erro ao verificar token:", tokenError);
-      setCorsHeaders(response);
       response.status(401).json({ 
         error: "Token inválido ou expirado",
         code: tokenError.code 
@@ -1047,7 +1029,6 @@ export const createUserAuth = functions.https.onRequest(async (request, response
       .get();
     
     if (!adminUserDoc.exists) {
-      setCorsHeaders(response);
       response.status(404).json({ error: "Usuário administrador não encontrado na coleção users" });
       return;
     }
@@ -1063,7 +1044,6 @@ export const createUserAuth = functions.https.onRequest(async (request, response
     // Verifica se tem permissão baseado no nível numérico (Nível 1-3 podem criar usuários)
     if (!adminHierarchy) {
       functions.logger.warn("Usuário sem nível hierárquico definido");
-      setCorsHeaders(response);
       response.status(403).json({ error: "Sem permissão para criar usuários - nível hierárquico não definido" });
       return;
     }
@@ -1082,7 +1062,6 @@ export const createUserAuth = functions.https.onRequest(async (request, response
       functions.logger.warn("Usuário sem permissão para criar outros usuários", {
         levelNum: levelNum
       });
-      setCorsHeaders(response);
       response.status(403).json({ 
         error: `Sem permissão para criar usuários. Seu nível (${adminHierarchy}) não permite esta ação. Apenas Níveis 1, 2 e 3 podem criar usuários.`,
         userLevel: adminHierarchy
@@ -1109,7 +1088,6 @@ export const createUserAuth = functions.https.onRequest(async (request, response
         hasLastName: !!lastName,
         hasHierarchyLevel: !!hierarchyLevel
       });
-      setCorsHeaders(response);
       response.status(400).json({ error: "Todos os campos são obrigatórios" });
       return;
     }
@@ -1118,7 +1096,6 @@ export const createUserAuth = functions.https.onRequest(async (request, response
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       functions.logger.warn("Email inválido:", email);
-      setCorsHeaders(response);
       response.status(400).json({ error: "Formato de e-mail inválido" });
       return;
     }
@@ -1126,7 +1103,6 @@ export const createUserAuth = functions.https.onRequest(async (request, response
     // Valida senha
     if (password.length < 6) {
       functions.logger.warn("Senha muito curta", { length: password.length });
-      setCorsHeaders(response);
       response.status(400).json({ error: "A senha deve ter pelo menos 6 caracteres" });
       return;
     }
@@ -1135,7 +1111,6 @@ export const createUserAuth = functions.https.onRequest(async (request, response
     const validLevels = ["Nível 1", "Nível 2", "Nível 3", "Nível 4", "Nível 5", "Nível 6"];
     if (!validLevels.includes(hierarchyLevel)) {
       functions.logger.warn("Nível hierárquico inválido", { hierarchyLevel });
-      setCorsHeaders(response);
       response.status(400).json({ 
         error: `Nível hierárquico inválido: ${hierarchyLevel}. Níveis válidos: ${validLevels.join(", ")}` 
       });
@@ -1153,7 +1128,6 @@ export const createUserAuth = functions.https.onRequest(async (request, response
         adminLevel: levelNum,
         targetLevel: targetLevelNum
       });
-      setCorsHeaders(response);
       response.status(403).json({ 
         error: `Você não pode criar usuários do nível ${hierarchyLevel}. Apenas níveis inferiores ao seu (${adminHierarchy}) podem ser criados.` 
       });
@@ -1188,8 +1162,6 @@ export const createUserAuth = functions.https.onRequest(async (request, response
         email: email.substring(0, 3) + "***",
         stack: authError.stack
       });
-      // Aplicar CORS antes de retornar erro
-      setCorsHeaders(response);
       // Retornar erro específico do Auth sem lançar exceção
       if (authError.code === 'auth/email-already-exists') {
         response.status(400).json({ 
@@ -1219,7 +1191,6 @@ export const createUserAuth = functions.https.onRequest(async (request, response
       uid: userRecord.uid,
       email: email.substring(0, 3) + "***"
     });
-    setCorsHeaders(response);
     response.status(200).json({
       success: true,
       uid: userRecord.uid,
@@ -1236,9 +1207,7 @@ export const createUserAuth = functions.https.onRequest(async (request, response
       keys: error ? Object.keys(error) : []
     });
     
-    // Aplicar CORS antes de retornar erro (sempre)
-    setCorsHeaders(response);
-    
+
     // Verificar se a resposta já foi enviada
     if (response.headersSent) {
       functions.logger.warn("Resposta já foi enviada, não é possível enviar erro");
@@ -1283,14 +1252,21 @@ export const createUserAuth = functions.https.onRequest(async (request, response
         errorMessage,
         code: error?.code || 'unknown'
       });
-      response.status(500).json({ 
+      response.status(500).json({
         error: errorMessage,
-        code: error?.code || 'unknown',
-        details: process.env.NODE_ENV === 'development' ? error?.stack : undefined
+        code: error?.code || "unknown",
+        details: process.env.NODE_ENV === "development" ? error?.stack : undefined
       });
       return;
     }
   }
+    })().catch((err: any) => {
+      if (!response.headersSent) {
+        functions.logger.error("createUserAuth unhandled", err);
+        response.status(500).json({ error: err?.message || "Erro interno" });
+      }
+    });
+  });
 });
 
 /**
@@ -1519,5 +1495,101 @@ export const sendTaskRejectionAlert = onCall(
           error: 'Erro interno: ' + (error instanceof Error ? error.message : 'Erro desconhecido') 
         };
       }
+  }
+);
+
+/**
+ * ========================================
+ * SOLICITAÇÃO DE AULA VIA LINK EXTERNO (consultores sem acesso ao sistema)
+ * ========================================
+ */
+
+/** GET: lista de cursos (id, title) para o formulário público de solicitação de aula */
+export const getPublicCourses = onRequest(
+  { cors: true },
+  async (req, res) => {
+    if (req.method !== "GET") {
+      res.status(405).json({ error: "Método não permitido. Use GET." });
+      return;
+    }
+    try {
+      const snap = await admin.firestore().collection("courses").get();
+      const list = snap.docs
+        .filter((d) => !d.data()?.deletedAt)
+        .map((d) => ({ id: d.id, title: d.data()?.title || "" }));
+      res.status(200).json(list);
+    } catch (e) {
+      logger.error("getPublicCourses error", e);
+      res.status(500).json({ error: "Erro ao listar cursos." });
+    }
+  }
+);
+
+/** POST: cria solicitação de aula (grava em lessons com status draft) - link externo para consultores */
+export const createLessonRequest = onRequest(
+  { cors: true },
+  async (req, res) => {
+    if (req.method !== "POST") {
+      res.status(405).json({ error: "Método não permitido. Use POST." });
+      return;
+    }
+    try {
+      const body = req.body as Record<string, unknown>;
+      const required = [
+        "email", "requesterName", "consultantName", "courseResponsibleName",
+        "courseResponsiblePhone", "courseResponsibleEmail", "lessonDate", "lessonStartTime",
+        "locationName", "locationAddress", "needsProfessor", "numberOfStudents",
+        "lessonDuration", "needsFolder", "hasHandsOn", "courseId"
+      ];
+      for (const key of required) {
+        if (body[key] === undefined || body[key] === null || String(body[key]).trim() === "") {
+          res.status(400).json({ error: `Campo obrigatório ausente ou vazio: ${key}` });
+          return;
+        }
+      }
+      const courseId = String(body.courseId).trim();
+      const courseSnap = await admin.firestore().collection("courses").doc(courseId).get();
+      if (!courseSnap.exists) {
+        res.status(400).json({ error: "Curso não encontrado." });
+        return;
+      }
+      const lessonData: Record<string, unknown> = {
+        email: String(body.email).trim(),
+        requesterName: String(body.requesterName).trim(),
+        consultantName: String(body.consultantName).trim(),
+        courseResponsibleName: String(body.courseResponsibleName).trim(),
+        courseResponsiblePhone: String(body.courseResponsiblePhone).trim(),
+        courseResponsiblePhoneCountryCode: body.courseResponsiblePhoneCountryCode ?? "BR",
+        courseResponsibleEmail: String(body.courseResponsibleEmail).trim(),
+        lessonDate: String(body.lessonDate).trim(),
+        lessonStartTime: String(body.lessonStartTime).trim(),
+        locationName: String(body.locationName).trim(),
+        locationAddress: String(body.locationAddress).trim(),
+        needsProfessor: String(body.needsProfessor).trim(),
+        professorName: body.professorName != null ? String(body.professorName).trim() : "",
+        professorId: body.professorId ?? "",
+        professorPaymentValue: body.professorPaymentValue != null ? Number(body.professorPaymentValue) : undefined,
+        numberOfStudents: String(body.numberOfStudents).trim(),
+        lessonDuration: String(body.lessonDuration).trim(),
+        customDuration: body.customDuration != null ? String(body.customDuration).trim() : "",
+        needsFolder: String(body.needsFolder).trim(),
+        hasHandsOn: String(body.hasHandsOn).trim(),
+        lessonTheme: body.lessonTheme != null ? String(body.lessonTheme).trim() : "",
+        implantModels: Array.isArray(body.implantModels) ? body.implantModels : [],
+        courseId,
+        status: "draft",
+        deletedAt: null,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+      const clean = Object.fromEntries(
+        Object.entries(lessonData).filter(([, v]) => v !== undefined)
+      ) as Record<string, unknown>;
+      const ref = await admin.firestore().collection("lessons").add(clean);
+      res.status(200).json({ success: true, id: ref.id, message: "Solicitação de aula enviada com sucesso." });
+    } catch (e) {
+      logger.error("createLessonRequest error", e);
+      res.status(500).json({ error: "Erro ao registrar solicitação. Tente novamente." });
+    }
   }
 );
