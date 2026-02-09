@@ -19,6 +19,7 @@ import DocumentsManager from "./pages/DocumentsManager";
 import TaskHistory from "./pages/TaskHistory";
 import TaskDetails from "./pages/TaskDetails";
 import Presets from "./pages/Presets";
+import AdminDatabase from "./pages/AdminDatabase";
 import { AuthProvider } from "./contexts/AuthContext";
 import { PageTitleProvider } from "./contexts/PageTitleContext";
 import { HeaderActionsProvider } from "./contexts/HeaderActionsContext";
@@ -181,6 +182,11 @@ const App = () => (
               <Route path="/presets/:presetId" element={
                 <ProtectedRoute>
                   <Dashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/database" element={
+                <ProtectedRoute>
+                  <AdminDatabase />
                 </ProtectedRoute>
               } />
               <Route path="*" element={<NotFound />} />

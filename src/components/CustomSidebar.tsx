@@ -7,7 +7,7 @@ import {
   KanbanSquare, FileText, Receipt,
   GraduationCap,
   FolderOpen, ChevronDown, X, Archive, BookOpen, UserCircle,
-  DollarSign, TrendingUp, TrendingDown, BarChart3
+  DollarSign, TrendingUp, TrendingDown, BarChart3, Database
 } from 'lucide-react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
@@ -71,7 +71,8 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
     'teachers': '/teachers',
     'collaborators': '/collaborators',
     'documents': '/documents',
-    'presets': '/presets'
+    'presets': '/presets',
+    'database': '/database'
   };
 
   // Sincronizar estado quando a prop muda
@@ -253,8 +254,66 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
     },
   ];
 
+  // Menu exclusivo para Nível 0 (AdminTI)
+  const adminTiMenuItems = [
+    {
+      id: "home",
+      icon: <Home className="h-4 w-4" />,
+      label: "Início",
+      requiresPermission: false
+    },
+    {
+      id: "database",
+      icon: <Database className="h-4 w-4" />,
+      label: "Banco de Dados",
+      requiresPermission: false
+    },
+    {
+      id: "collaborators",
+      icon: <Users className="h-4 w-4" />,
+      label: "Colaboradores",
+      requiresPermission: true,
+      permission: 'manage_department'
+    },
+    {
+      id: "courses",
+      icon: <GraduationCap className="h-4 w-4" />,
+      label: "Cursos",
+      requiresPermission: true,
+      permission: 'manage_department',
+      hasSubmenu: true
+    },
+    {
+      id: "calendar",
+      icon: <Calendar className="h-4 w-4" />,
+      label: "Agenda",
+      requiresPermission: false
+    },
+    {
+      id: "eventos",
+      icon: <CalendarDays className="h-4 w-4" />,
+      label: "Eventos",
+      requiresPermission: false
+    },
+    {
+      id: "tasks",
+      icon: <KanbanSquare className="h-4 w-4" />,
+      label: "Tarefas",
+      requiresPermission: false,
+      hasSubmenu: true
+    },
+    {
+      id: "financial",
+      icon: <DollarSign className="h-4 w-4" />,
+      label: "Financeiros",
+      requiresPermission: true,
+      permission: 'view_financial_reports',
+      hasSubmenu: true
+    },
+  ];
+
   // Determinar qual menu usar baseado na hierarquia (memoizado para evitar re-renderizações)
-  // Nível 0 e Nível 1 vêem todos os menus na mesma ordem (directorTiMenuItems)
+  // Nível 0 tem menu exclusivo com Banco de Dados, Nível 1 vê menu completo
   const menuItems = useMemo(() => {
     if (userRoleRaw === 'Cliente Externo' || userRoleRaw === 'Cliente') {
       return clientExternalMenuItems;
@@ -263,8 +322,13 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
     // Para níveis numéricos, verificar o número do nível
     const levelNum = getLevelNumber(userRole);
     
-    // Nível 0 e Nível 1 vêem todos os menus (menu completo, mesma ordem)
-    if (levelNum <= 1) {
+    // Nível 0 tem menu exclusivo com Banco de Dados
+    if (levelNum === 0) {
+      return adminTiMenuItems;
+    }
+    
+    // Nível 1 vê todos os menus (menu completo)
+    if (levelNum === 1) {
       return directorTiMenuItems;
     }
     
@@ -351,11 +415,14 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
   }, []); // Executado apenas uma vez na montagem
 
   // Filtrar itens baseado nas permissões do usuário (memoizado para evitar re-renderizações)
-  // Nível 0 e Nível 1 vêem todos os menus sem filtro
+  // Nível 0 vê tudo sem filtro
   const availableMenuItems = useMemo(() => {
     const levelNum = getLevelNumber(userRole);
-    if (levelNum <= 1) {
-      return menuItems; // Nível 0 e Nível 1 vêem tudo
+    if (levelNum === 0) {
+      return menuItems; // Nível 0 vê tudo (incluindo Banco de Dados)
+    }
+    if (levelNum === 1) {
+      return menuItems; // Nível 1 vê tudo (exceto Banco de Dados)
     }
     return menuItems.filter(item => {
       if (!item.requiresPermission) return true;
