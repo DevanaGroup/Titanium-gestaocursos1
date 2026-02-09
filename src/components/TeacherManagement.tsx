@@ -44,6 +44,7 @@ import {
 } from "@/components/ui/select";
 import { TeacherPaymentData } from "@/types/teacher";
 import { BankCombobox } from "@/components/BankCombobox";
+import { Textarea } from "@/components/ui/textarea";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -77,13 +78,16 @@ interface TeacherData extends User {
   address?: TeacherAddress;
   availability?: TeacherAvailability;
   paymentData?: TeacherPaymentData;
+  miniCurriculo?: string;
+  observation?: string;
+  lgpdConsent?: boolean;
 }
 
 const enableAdministrativeMode = () => {
   (window as any).administrativeOperation = true;
   (window as any).collaboratorCreationInProgress = true;
   (window as any).intentionalLogout = true;
-  console.log('🔒 Modo administrativo ativado - logout automático desabilitado');
+  if (import.meta.env.DEV) console.debug('Modo administrativo ativado');
 };
 
 const disableAdministrativeMode = () => {
@@ -91,7 +95,7 @@ const disableAdministrativeMode = () => {
     (window as any).administrativeOperation = false;
     (window as any).collaboratorCreationInProgress = false;
     (window as any).intentionalLogout = false;
-    console.log('🔓 Modo administrativo desativado - logout automático reativado');
+    if (import.meta.env.DEV) console.debug('Modo administrativo desativado');
   }, 1000);
 };
 
@@ -295,6 +299,9 @@ export const TeacherManagement = () => {
     cro: "",
     password: "",
     photoURL: null as string | null,
+    miniCurriculo: "",
+    observation: "",
+    lgpdConsent: false,
     address: {
       cep: "",
       street: "",
@@ -322,11 +329,11 @@ export const TeacherManagement = () => {
     } as TeacherPaymentData
   });
 
+  const fetchTeachersRanRef = useRef(false);
+
   const fetchTeachers = async () => {
     setIsLoading(true);
     try {
-      console.log("🔍 TeacherManagement - Buscando professores...");
-      
       const usersCollection = collection(db, "users");
       const usersSnapshot = await getDocs(usersCollection);
       
@@ -359,13 +366,15 @@ export const TeacherManagement = () => {
             address: data.address || undefined,
             availability: data.availability || undefined,
             paymentData: data.paymentData || undefined,
+            miniCurriculo: data.miniCurriculo || "",
+            observation: data.observation || "",
+            lgpdConsent: data.lgpdConsent === true,
             createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt ? new Date(data.createdAt) : new Date()),
             updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : (data.updatedAt ? new Date(data.updatedAt) : new Date()),
           };
         })
         .filter(teacher => teacher.hierarchyLevel === "Nível 6");
-      
-      console.log("✅ TeacherManagement - Professores carregados:", teachersList.length);
+
       setTeachers(teachersList);
     } catch (error) {
       console.error("❌ TeacherManagement - Erro ao buscar professores:", error);
@@ -377,6 +386,8 @@ export const TeacherManagement = () => {
   };
 
   useEffect(() => {
+    if (fetchTeachersRanRef.current) return;
+    fetchTeachersRanRef.current = true;
     fetchTeachers();
   }, []);
 
@@ -416,19 +427,8 @@ export const TeacherManagement = () => {
     e.stopPropagation();
     
     const file = e.target.files?.[0];
-    console.log('handlePhotoChange chamado:', { file, isEdit, hasFile: !!file });
-    
-    if (!file) {
-      console.log('Nenhum arquivo selecionado');
-      return;
-    }
-    
-    console.log('Arquivo selecionado:', {
-      name: file.name,
-      type: file.type,
-      size: file.size
-    });
-    
+    if (!file) return;
+
     if (!file.type.startsWith('image/')) {
       toast.error('Por favor, selecione uma imagem');
       const input = isEdit ? editPhotoUploadRef.current : photoUploadRef.current;
@@ -449,17 +449,12 @@ export const TeacherManagement = () => {
     
     try {
       toast.loading('Processando imagem...');
-      console.log('Iniciando processamento da imagem...');
       const base64Image = await processImage(file);
-      
-      console.log('Imagem processada com sucesso, tamanho base64:', base64Image.length);
-      
+
       if (isEdit && selectedTeacher) {
-        console.log('Atualizando foto do professor em edição');
         setEditPhotoPreview(base64Image);
         setSelectedTeacher({ ...selectedTeacher, photoURL: base64Image });
       } else {
-        console.log('Atualizando foto do novo professor');
         setPhotoPreview(base64Image);
         setNewTeacher({ ...newTeacher, photoURL: base64Image });
       }
@@ -510,6 +505,13 @@ export const TeacherManagement = () => {
         return;
       }
 
+      if (!newTeacher.lgpdConsent) {
+        toast.error("É necessário concordar com o tratamento de dados pessoais (LGPD) para criar o cadastro.");
+        setIsLoading(false);
+        disableAdministrativeMode();
+        return;
+      }
+
       // Verificar se o email já existe
       const emailQuery = query(
         collection(db, 'users'),
@@ -538,13 +540,6 @@ export const TeacherManagement = () => {
         return;
       }
 
-      // 📡 Chamar função serverless para criar usuário no Auth
-      console.log('🚀 Chamando função serverless para criar usuário...');
-      console.log('📧 Email:', newTeacher.email);
-      console.log('👤 Nome:', firstName, lastName);
-      console.log('📊 Nível: Nível 6');
-      console.log('🔑 Password presente:', !!newTeacher.password);
-      
       const requestBody = {
         email: newTeacher.email,
         password: newTeacher.password,
@@ -553,18 +548,9 @@ export const TeacherManagement = () => {
         hierarchyLevel: "Nível 6"
       };
       
-      console.log('📦 Body da requisição:', {
-        email: requestBody.email,
-        hasPassword: !!requestBody.password,
-        firstName: requestBody.firstName,
-        lastName: requestBody.lastName,
-        hierarchyLevel: requestBody.hierarchyLevel
-      });
-      
       toast.info("Criando usuário no sistema de autenticação...");
-      
+
       const token = await currentUser.getIdToken();
-      console.log('🔑 Token obtido, fazendo requisição...');
       
       let createUserResponse;
       try {
@@ -577,11 +563,6 @@ export const TeacherManagement = () => {
           body: JSON.stringify(requestBody)
         });
         
-        console.log('📡 Resposta recebida:', {
-          status: createUserResponse.status,
-          statusText: createUserResponse.statusText,
-          ok: createUserResponse.ok
-        });
       } catch (fetchError: any) {
         console.error('❌ Erro na requisição fetch:', fetchError);
         throw new Error(`Erro de conexão: ${fetchError.message || 'Não foi possível conectar ao servidor'}`);
@@ -609,7 +590,6 @@ export const TeacherManagement = () => {
       let authResult;
       try {
         authResult = await createUserResponse.json();
-        console.log('✅ Resposta JSON recebida:', authResult);
       } catch (parseError) {
         console.error('❌ Erro ao parsear resposta JSON:', parseError);
         throw new Error('Resposta inválida do servidor');
@@ -621,11 +601,9 @@ export const TeacherManagement = () => {
         throw new Error('UID do usuário não foi retornado pelo servidor');
       }
       
-      console.log('✅ Usuário criado com sucesso no Auth:', newUserId);
       toast.success("Usuário criado no sistema de autenticação!");
 
-      // ✅ SALVAR DADOS NA COLEÇÃO USERS
-      console.log('💾 Salvando dados na coleção users...');
+      // Salvar dados na coleção users
       toast.info("Salvando dados do professor...");
       
       await setDoc(doc(db, "users", newUserId), {
@@ -646,6 +624,9 @@ export const TeacherManagement = () => {
         address: newTeacher.address,
         availability: newTeacher.availability,
         paymentData: newTeacher.paymentData,
+        miniCurriculo: newTeacher.miniCurriculo || "",
+        observation: newTeacher.observation || "",
+        lgpdConsent: newTeacher.lgpdConsent,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
@@ -663,6 +644,9 @@ export const TeacherManagement = () => {
         cro: "",
         password: "",
         photoURL: null,
+        miniCurriculo: "",
+        observation: "",
+        lgpdConsent: false,
         address: {
           cep: "",
           street: "",
@@ -694,8 +678,6 @@ export const TeacherManagement = () => {
       setPhotoPreview(null);
       
       await fetchTeachers();
-      
-      console.log('✅ Processo de criação de professor concluído com sucesso!');
       
     } catch (error: any) {
       console.error('❌ Erro geral ao criar professor:', error);
@@ -741,6 +723,9 @@ export const TeacherManagement = () => {
         address: selectedTeacher.address,
         availability: selectedTeacher.availability,
         paymentData: selectedTeacher.paymentData,
+        miniCurriculo: selectedTeacher.miniCurriculo || "",
+        observation: selectedTeacher.observation || "",
+        lgpdConsent: selectedTeacher.lgpdConsent === true,
         updatedAt: serverTimestamp()
       });
 
@@ -881,10 +866,7 @@ export const TeacherManagement = () => {
                         id="photo-upload"
                         accept="image/*"
                         style={{ display: 'none' }}
-                        onChange={(e) => {
-                          console.log('onChange disparado!', e.target.files);
-                          handlePhotoChange(e, false);
-                        }}
+                        onChange={(e) => handlePhotoChange(e, false)}
                       />
                     </div>
                     <p className="text-xs text-muted-foreground text-center">
@@ -991,10 +973,10 @@ export const TeacherManagement = () => {
                         </div>
                       </div>
                       <div className="grid gap-2">
-                        <Label htmlFor="cro">CRO *</Label>
+                        <Label htmlFor="cro">CRO-Estado *</Label>
                         <Input
                           id="cro"
-                          placeholder="00000-PR"
+                          placeholder="000000-SP"
                           value={newTeacher.cro}
                           onChange={(e) => setNewTeacher({ ...newTeacher, cro: e.target.value })}
                         />
@@ -1108,11 +1090,11 @@ export const TeacherManagement = () => {
                           className="h-4 w-4"
                         />
                         <Label htmlFor="availableOutsideBrazil" className="font-normal cursor-pointer">
-                          Disponibilidade Fora do Brasil
+                          Possui disponibilidade para dar treinamentos fora do Brasil?
                         </Label>
                       </div>
                       <div className="grid gap-2">
-                        <Label htmlFor="travelAvailability">Disponibilidade para viagem</Label>
+                        <Label htmlFor="travelAvailability">Tem disponibilidade de deslocamento para aulas?</Label>
                         <Select
                           value={newTeacher.availability.travelAvailability}
                           onValueChange={(value) => setNewTeacher({
@@ -1135,7 +1117,7 @@ export const TeacherManagement = () => {
                         </Select>
                       </div>
                       <div className="grid gap-2">
-                        <Label>Idiomas que tem domínio</Label>
+                        <Label>Quais idiomas você tem domínio para dar treinamento?</Label>
                         <div className="grid grid-cols-2 gap-3 p-3 border rounded-md max-h-48 overflow-y-auto">
                           {AVAILABLE_LANGUAGES.map((language) => (
                             <div key={language} className="flex items-center space-x-2">
@@ -1165,7 +1147,7 @@ export const TeacherManagement = () => {
                         </div>
                       </div>
                       <div className="grid gap-2">
-                        <Label htmlFor="noticePeriod">Prazo para solicitação de aula (dias)</Label>
+                        <Label htmlFor="noticePeriod">Prazo mínimo de antecedência para solicitarmos aulas (dias)</Label>
                         <Input
                           id="noticePeriod"
                           type="number"
@@ -1179,6 +1161,57 @@ export const TeacherManagement = () => {
                             }
                           })}
                         />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Mini currículo e Observação */}
+                  <div className="space-y-2">
+                    <h3 className="font-semibold text-sm">Informações adicionais</h3>
+                    <div className="grid gap-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="miniCurriculo">Descreva abaixo seu mini currículo incluindo os 5 principais títulos:</Label>
+                        <Textarea
+                          id="miniCurriculo"
+                          placeholder="Ex.: Especialização X; Mestrado Y; Título 3; Título 4; Título 5"
+                          value={newTeacher.miniCurriculo}
+                          onChange={(e) => setNewTeacher({ ...newTeacher, miniCurriculo: e.target.value })}
+                          className="min-h-[100px] resize-y"
+                          rows={4}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="observation">Observação:</Label>
+                        <Textarea
+                          id="observation"
+                          placeholder="Observações gerais sobre o professor..."
+                          value={newTeacher.observation}
+                          onChange={(e) => setNewTeacher({ ...newTeacher, observation: e.target.value })}
+                          className="min-h-[80px] resize-y"
+                          rows={3}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Consentimento LGPD */}
+                  <div className="space-y-2">
+                    <h3 className="font-semibold text-sm">Consentimento LGPD</h3>
+                    <div className="rounded-md border bg-muted/30 p-4 space-y-3">
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        Este documento registra a manifestação livre, informada e inequívoca pela qual o(a) titular concorda com o tratamento de seus dados pessoais para finalidade específica, em conformidade com a Lei nº 13.709 – Lei Geral de Proteção de Dados Pessoais (LGPD).
+                      </p>
+                      <div className="flex items-start space-x-2">
+                        <input
+                          type="checkbox"
+                          id="lgpdConsent"
+                          checked={newTeacher.lgpdConsent}
+                          onChange={(e) => setNewTeacher({ ...newTeacher, lgpdConsent: e.target.checked })}
+                          className="h-4 w-4 mt-0.5 rounded border-input"
+                        />
+                        <Label htmlFor="lgpdConsent" className="text-sm font-normal cursor-pointer leading-tight">
+                          Declaro que li e concordo com o tratamento dos meus dados pessoais conforme descrito acima. *
+                        </Label>
                       </div>
                     </div>
                   </div>
@@ -1512,7 +1545,6 @@ export const TeacherManagement = () => {
                     accept="image/*"
                     style={{ display: 'none' }}
                     onChange={(e) => {
-                      console.log('onChange disparado!', e.target.files);
                       handlePhotoChange(e, true);
                     }}
                   />
@@ -1628,7 +1660,7 @@ export const TeacherManagement = () => {
                 </div>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="editCRO">CRO *</Label>
+                <Label htmlFor="editCRO">CRO-Estado *</Label>
                 <Input
                   id="editCRO"
                   placeholder="00000-PR"
@@ -1742,11 +1774,11 @@ export const TeacherManagement = () => {
                       className="h-4 w-4"
                     />
                     <Label htmlFor="editAvailableOutsideBrazil" className="font-normal cursor-pointer">
-                      Disponibilidade Fora do Brasil
+                      Possui disponibilidade para dar treinamentos fora do Brasil?
                     </Label>
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="editTravelAvailability">Disponibilidade para viagem</Label>
+                    <Label htmlFor="editTravelAvailability">Tem disponibilidade de deslocamento para aulas?</Label>
                     <Select
                       value={selectedTeacher.availability?.travelAvailability || "Dentro do estado"}
                       onValueChange={(value) => setSelectedTeacher({
@@ -1769,7 +1801,7 @@ export const TeacherManagement = () => {
                     </Select>
                   </div>
                   <div className="grid gap-2">
-                    <Label>Idiomas que tem domínio</Label>
+                    <Label>Quais idiomas você tem domínio para dar treinamento?</Label>
                     <div className="grid grid-cols-2 gap-3 p-3 border rounded-md max-h-48 overflow-y-auto">
                       {AVAILABLE_LANGUAGES.map((language) => (
                         <div key={language} className="flex items-center space-x-2">
@@ -1800,7 +1832,7 @@ export const TeacherManagement = () => {
                     </div>
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="editNoticePeriod">Prazo para solicitação de aula (dias)</Label>
+                    <Label htmlFor="editNoticePeriod">Prazo mínimo de antecedência para solicitarmos aulas (dias)</Label>
                     <Input
                       id="editNoticePeriod"
                       type="number"
@@ -1815,6 +1847,48 @@ export const TeacherManagement = () => {
                       })}
                     />
                   </div>
+                </div>
+              </div>
+
+              {/* Mini currículo e Observação */}
+              <div className="space-y-2">
+                <h3 className="font-semibold text-sm">Informações adicionais</h3>
+                <div className="grid gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="editMiniCurriculo">Descreva abaixo seu mini currículo incluindo os 5 principais títulos:</Label>
+                    <Textarea
+                      id="editMiniCurriculo"
+                      placeholder="Descreva seu mini currículo incluindo os 5 principais títulos..."
+                      value={selectedTeacher.miniCurriculo || ''}
+                      onChange={(e) => setSelectedTeacher({ ...selectedTeacher, miniCurriculo: e.target.value })}
+                      className="min-h-[100px] resize-y"
+                      rows={4}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="editObservation">Observação:</Label>
+                    <Textarea
+                      id="editObservation"
+                      placeholder="Observações gerais sobre o professor..."
+                      value={selectedTeacher.observation || ''}
+                      onChange={(e) => setSelectedTeacher({ ...selectedTeacher, observation: e.target.value })}
+                      className="min-h-[80px] resize-y"
+                      rows={3}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Consentimento LGPD (apenas exibição na edição - já foi dado no cadastro) */}
+              <div className="space-y-2">
+                <h3 className="font-semibold text-sm">Consentimento LGPD</h3>
+                <div className="rounded-md border bg-muted/30 p-4">
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Este documento registra a manifestação livre, informada e inequívoca pela qual o(a) titular concorda com o tratamento de seus dados pessoais para finalidade específica, em conformidade com a Lei nº 13.709 – Lei Geral de Proteção de Dados Pessoais (LGPD).
+                  </p>
+                  <p className="text-sm mt-2">
+                    Consentimento registrado: {selectedTeacher.lgpdConsent ? "Sim" : "Não"}
+                  </p>
                 </div>
               </div>
 

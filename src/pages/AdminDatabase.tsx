@@ -22,6 +22,8 @@ import {
   Loader2,
   Copy,
   UserCircle,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { SidebarProvider } from "@/contexts/SidebarContext";
 import CustomSidebar from "@/components/CustomSidebar";
@@ -70,6 +72,8 @@ const AdminDatabase = () => {
   });
   const [showProgressDialog, setShowProgressDialog] = useState(false);
   const [isImportComplete, setIsImportComplete] = useState(false);
+  const [teacherDefaultPassword, setTeacherDefaultPassword] = useState("");
+  const [showTeacherPassword, setShowTeacherPassword] = useState(false);
 
   // Verificar permissão de acesso
   useEffect(() => {
@@ -112,15 +116,18 @@ const AdminDatabase = () => {
     return () => unsubscribe();
   }, [navigate, toast]);
 
+  const [currentImportType, setCurrentImportType] = useState<string>("");
+
   // Handler para importação de CSV
   const handleCSVImport = async (file: File, type: string) => {
     setIsImporting(true);
+    setCurrentImportType(type);
     setShowProgressDialog(true);
     setIsImportComplete(false);
     setImportProgress({
       current: 0,
       total: 0,
-      currentItem: "",
+      currentItem: "Abrindo arquivo...",
       success: 0,
       failed: 0,
       errors: [],
@@ -137,9 +144,11 @@ const AdminDatabase = () => {
           });
           break;
         case "teachers":
-          result = await importTeachersFromCSV(file, (progress) => {
-            setImportProgress(progress);
-          });
+          result = await importTeachersFromCSV(
+            file,
+            (progress) => setImportProgress(progress),
+            { defaultPassword: teacherDefaultPassword.trim() || undefined }
+          );
           break;
         case "courses":
           result = await importCoursesFromCSV(file, (progress) => {
@@ -314,6 +323,39 @@ const AdminDatabase = () => {
                   onImport={handleCSVImport}
                   onDownloadTemplate={handleDownloadTemplate}
                   isImporting={isImporting}
+                  columns={TEACHERS_CSV_COLUMNS}
+                  extraContent={
+                    <div className="space-y-2">
+                      <Label htmlFor="teacher-default-password">Senha padrão (obrigatória para importar)</Label>
+                      <div className="relative max-w-xs">
+                        <Input
+                          id="teacher-default-password"
+                          type={showTeacherPassword ? "text" : "password"}
+                          placeholder="Mín. 6 caracteres"
+                          value={teacherDefaultPassword}
+                          onChange={(e) => setTeacherDefaultPassword(e.target.value)}
+                          className="pr-10"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          onClick={() => setShowTeacherPassword((v) => !v)}
+                          aria-label={showTeacherPassword ? "Ocultar senha" : "Mostrar senha"}
+                        >
+                          {showTeacherPassword ? (
+                            <EyeOff className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <Eye className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Cada professor é cadastrado como usuário (Nível 6) no Firebase Auth e em Firestore. A senha padrão é obrigatória para a importação.
+                      </p>
+                    </div>
+                  }
                 />
               </TabsContent>
 
@@ -374,11 +416,35 @@ const AdminDatabase = () => {
           onOpenChange={setShowProgressDialog}
           progress={importProgress}
           isComplete={isImportComplete}
+          importType={currentImportType}
         />
       </div>
     </SidebarProvider>
   );
 };
+
+// Colunas esperadas no CSV de professores (para exibir na aba Professores)
+const TEACHERS_CSV_COLUMNS: { name: string; description: string }[] = [
+  { name: "fullName", description: "Nome completo" },
+  { name: "birthDate", description: "Data de nascimento (dd/MM/yyyy)" },
+  { name: "cro", description: "CRO-Estado (ex: 000000-SP)" },
+  { name: "cpf", description: "CPF sem pontuação" },
+  { name: "phone", description: "Telefone/WhatsApp com DDD (ex: 11 98888-7777)" },
+  { name: "email", description: "E-mail (obrigatório)" },
+  { name: "street", description: "Endereço (rua)" },
+  { name: "number", description: "Número" },
+  { name: "neighborhood", description: "Bairro" },
+  { name: "city", description: "Cidade" },
+  { name: "state", description: "Estado (UF)" },
+  { name: "cep", description: "CEP" },
+  { name: "travelAvailability", description: "Disponibilidade de deslocamento (Dentro do estado / Fora do estado / Brasil todo / Internacional)" },
+  { name: "availableOutsideBrazil", description: "Disponibilidade para treinamentos fora do Brasil (Sim/Não)" },
+  { name: "languages", description: "Idiomas (separados por vírgula, ex: Português,Inglês,Espanhol)" },
+  { name: "noticePeriodDays", description: "Prazo mínimo de antecedência para solicitar aulas (dias)" },
+  { name: "miniCurriculo", description: "Mini currículo com os 5 principais títulos" },
+  { name: "observation", description: "Observação" },
+  { name: "lgpdConsent", description: "Consentimento LGPD (Sim/Não)" },
+];
 
 // Componente reutilizável para cada tab
 interface ImportTabContentProps {
@@ -388,6 +454,8 @@ interface ImportTabContentProps {
   onImport: (file: File, type: string) => void;
   onDownloadTemplate: (type: string) => void;
   isImporting: boolean;
+  columns?: { name: string; description: string }[];
+  extraContent?: React.ReactNode;
 }
 
 const ImportTabContent: React.FC<ImportTabContentProps> = ({
@@ -397,6 +465,8 @@ const ImportTabContent: React.FC<ImportTabContentProps> = ({
   onImport,
   onDownloadTemplate,
   isImporting,
+  columns,
+  extraContent,
 }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
@@ -476,6 +546,8 @@ const ImportTabContent: React.FC<ImportTabContentProps> = ({
                 Planilha normal (Excel, Google Sheets). Aceita vírgula (,) ou ponto e vírgula (;).
                 Se houver cabeçalho, use a coluna correspondente.
               </p>
+
+              {extraContent}
             </div>
 
             {/* Informações */}
@@ -495,6 +567,27 @@ const ImportTabContent: React.FC<ImportTabContentProps> = ({
                   <strong>4.</strong> Clique em "Importar" para processar
                 </p>
               </div>
+
+              {columns && columns.length > 0 && (
+                <>
+                  <h3 className="text-lg font-semibold">Colunas do CSV</h3>
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <p className="text-xs text-gray-600 mb-3">
+                      Use exatamente estes nomes na primeira linha do arquivo:
+                    </p>
+                    <ul className="space-y-1.5 text-sm">
+                      {columns.map((col) => (
+                        <li key={col.name} className="flex gap-2">
+                          <code className="font-mono text-primary bg-primary/10 px-1.5 py-0.5 rounded shrink-0">
+                            {col.name}
+                          </code>
+                          <span className="text-gray-700">— {col.description}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </CardContent>

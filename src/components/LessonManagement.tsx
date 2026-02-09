@@ -19,13 +19,18 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { Search, Edit, Trash2, Plus, BookOpen, MoreVertical } from "lucide-react";
+import { Search, Edit, Trash2, Plus, BookOpen, MoreVertical, Copy, Info } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { db } from "@/config/firebase";
@@ -776,13 +781,38 @@ export const LessonManagement = () => {
                 Crie e gerencie as aulas dos cursos disponíveis no sistema
               </CardDescription>
             </div>
-            <Button 
-              onClick={() => setIsAddDialogOpen(true)}
-              className="bg-red-500 hover:bg-red-600"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Nova Aula
-            </Button>
+            <div className="flex items-center gap-2">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button type="button" variant="ghost" size="icon" className="h-10 w-10 shrink-0 text-muted-foreground hover:text-foreground">
+                    <Info className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs">
+                  <p>Consultores sem acesso podem solicitar aula pelo link externo:</p>
+                </TooltipContent>
+              </Tooltip>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10 shrink-0 text-primary"
+                onClick={() => {
+                  const url = `${window.location.origin}/lessons/solicitar`;
+                  void navigator.clipboard.writeText(url);
+                  toast.success("Link copiado! Envie para os consultores.");
+                }}
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+              <Button
+                onClick={() => setIsAddDialogOpen(true)}
+                className="bg-red-500 hover:bg-red-600"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Nova Aula
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="h-[600px] overflow-y-auto">

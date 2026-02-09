@@ -13,6 +13,15 @@ const downloadCSV = (filename: string, content: string) => {
   document.body.removeChild(link);
 };
 
+// Escapa um valor para CSV (coloca entre aspas se tiver vírgula, quebra de linha ou aspas)
+const escapeCSVCell = (value: string): string => {
+  const s = String(value ?? "");
+  if (s.includes(",") || s.includes("\n") || s.includes('"')) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
+};
+
 // ============= COLABORADORES =============
 export const downloadCollaboratorsTemplate = () => {
   const headers = [
@@ -44,24 +53,52 @@ export const downloadCollaboratorsTemplate = () => {
 // ============= PROFESSORES =============
 export const downloadTeachersTemplate = () => {
   const headers = [
-    "name",
-    "email",
+    "fullName",
+    "birthDate",
+    "cro",
+    "cpf",
     "phone",
-    "specialty",
-    "hourlyRate",
-    "status",
+    "email",
+    "street",
+    "number",
+    "neighborhood",
+    "city",
+    "state",
+    "cep",
+    "travelAvailability",
+    "availableOutsideBrazil",
+    "languages",
+    "noticePeriodDays",
+    "miniCurriculo",
+    "observation",
+    "lgpdConsent",
   ];
 
   const exampleRow = [
     "Maria Santos",
+    "15/03/1985",
+    "123456-SP",
+    "12345678900",
+    "11988887777",
     "maria.santos@email.com",
-    "11988888888",
-    "Matemática",
-    "150",
-    "Ativo",
+    "Rua Exemplo",
+    "100",
+    "Centro",
+    "São Paulo",
+    "SP",
+    "01310100",
+    "Brasil todo",
+    "Sim",
+    "Português,Inglês,Espanhol",
+    "30",
+    "Especialização X; Mestrado Y; Título 3; Título 4; Título 5",
+    "Observações gerais",
+    "Sim",
   ];
 
-  const csv = [headers.join(","), exampleRow.join(",")].join("\n");
+  const headerLine = headers.join(",");
+  const dataLine = exampleRow.map(escapeCSVCell).join(",");
+  const csv = [headerLine, dataLine].join("\n");
   downloadCSV("modelo_professores.csv", csv);
 };
 

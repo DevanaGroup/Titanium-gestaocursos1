@@ -20,6 +20,7 @@ import TaskHistory from "./pages/TaskHistory";
 import TaskDetails from "./pages/TaskDetails";
 import Presets from "./pages/Presets";
 import AdminDatabase from "./pages/AdminDatabase";
+import LessonRequestPage from "./pages/LessonRequestPage";
 import { AuthProvider } from "./contexts/AuthContext";
 import { PageTitleProvider } from "./contexts/PageTitleContext";
 import { HeaderActionsProvider } from "./contexts/HeaderActionsContext";
@@ -159,6 +160,7 @@ const App = () => (
                   <Dashboard />
                 </ProtectedRoute>
               } />
+              <Route path="/lessons/solicitar" element={<LessonRequestPage />} />
               <Route path="/teachers" element={
                 <ProtectedRoute>
                   <Dashboard />

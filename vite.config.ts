@@ -5,11 +5,23 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from 'vite-plugin-pwa';
 
+// Cache version: muda a cada deploy para forçar invalidação do Service Worker
+const CACHE_VERSION = process.env.VERCEL_BUILD_ID || process.env.npm_package_version || `build-${Date.now()}`;
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
     host: true,
     port: 8080,
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash][extname]',
+      },
+    },
   },
   plugins: [
     react(),
@@ -43,9 +55,12 @@ export default defineConfig(({ mode }) => ({
         ]
       },
       workbox: {
+        cacheId: `titanium-gestao-${CACHE_VERSION}`,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        maximumFileSizeToCacheInBytes: 5000000, // 5 MB
-        cleanupOutdatedCaches: true, // Remove caches de versões antigas ao ativar novo SW
+        maximumFileSizeToCacheInBytes: 5000000,
+        cleanupOutdatedCaches: true,
+        skipWaiting: true,
+        clientsClaim: true,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -54,7 +69,7 @@ export default defineConfig(({ mode }) => ({
               cacheName: 'google-fonts-cache',
               expiration: {
                 maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365 // <== 365 days
+                maxAgeSeconds: 60 * 60 * 24 * 365
               },
               cacheableResponse: {
                 statuses: [0, 200]
@@ -68,7 +83,7 @@ export default defineConfig(({ mode }) => ({
               cacheName: 'gstatic-fonts-cache',
               expiration: {
                 maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365 // <== 365 days
+                maxAgeSeconds: 60 * 60 * 24 * 365
               },
               cacheableResponse: {
                 statuses: [0, 200]

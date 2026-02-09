@@ -21,11 +21,21 @@ export interface ImportProgress {
   warnings: string[];
 }
 
+const IMPORT_TYPE_LABELS: Record<string, string> = {
+  collaborators: "Colaboradores",
+  teachers: "Professores",
+  courses: "Cursos",
+  lessons: "Aulas",
+  events: "Eventos",
+  tasks: "Tarefas",
+};
+
 interface ImportProgressDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   progress: ImportProgress;
   isComplete: boolean;
+  importType?: string;
 }
 
 export const ImportProgressDialog: React.FC<ImportProgressDialogProps> = ({
@@ -33,8 +43,10 @@ export const ImportProgressDialog: React.FC<ImportProgressDialogProps> = ({
   onOpenChange,
   progress,
   isComplete,
+  importType = "",
 }) => {
-  const percentage = progress.total > 0 ? (progress.current / progress.total) * 100 : 0;
+  const percentage = progress.total > 0 ? Math.min(100, (progress.current / progress.total) * 100) : 0;
+  const typeLabel = IMPORT_TYPE_LABELS[importType] || "Dados";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -43,8 +55,8 @@ export const ImportProgressDialog: React.FC<ImportProgressDialogProps> = ({
           <DialogTitle className="flex items-center gap-2">
             {!isComplete ? (
               <>
-                <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                Importando Dados...
+                <Loader2 className="h-5 w-5 animate-spin text-primary shrink-0" />
+                Importando {typeLabel}...
               </>
             ) : (
               <>
@@ -76,11 +88,20 @@ export const ImportProgressDialog: React.FC<ImportProgressDialogProps> = ({
               <span>Progresso</span>
               <span>
                 {progress.current} / {progress.total}
+                {progress.total > 0 && (
+                  <span className="text-muted-foreground ml-1">({Math.round(percentage)}%)</span>
+                )}
               </span>
             </div>
-            <Progress value={percentage} className="h-2" />
-            {!isComplete && progress.currentItem && (
-              <p className="text-xs text-gray-500">Processando: {progress.currentItem}</p>
+            <Progress value={percentage} className="h-3" />
+            {(progress.currentItem || !isComplete) && (
+              <p className="text-sm text-foreground/90 min-h-[1.25rem]">
+                {!isComplete ? (
+                  <>Processando: <strong>{progress.currentItem || "..."}</strong></>
+                ) : (
+                  progress.total > 0 ? `Total: ${progress.success} sucesso, ${progress.failed} falha(s).` : null
+                )}
+              </p>
             )}
           </div>
 
