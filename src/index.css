@@ -1506,6 +1506,223 @@ html {
   }
 }
 
+/* Mobile Responsiveness Fixes */
+@media (max-width: 767px) {
+  /* Garantir que o body não tenha overflow horizontal */
+  body {
+    overflow-x: hidden;
+    width: 100%;
+    position: relative;
+  }
+
+  /* Ajustar o container principal do dashboard */
+  .dashboard-content {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 0.5rem !important;
+  }
+
+  /* Garantir que cards e tabelas sejam responsivos */
+  .responsive-container,
+  .table-container {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Ajustar padding em telas pequenas */
+  main {
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  }
+
+  /* Garantir que o header seja sempre visível */
+  header {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 50 !important;
+    width: 100% !important;
+    background-color: white !important;
+  }
+
+  /* Ajustar botões para serem mais tocáveis */
+  button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Melhorar espaçamento de cards */
+  .card {
+    margin-bottom: 1rem;
+  }
+
+  /* Ajustar fontes para melhor legibilidade */
+  body {
+    font-size: 14px;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+  }
+
+  h2 {
+    font-size: 1.25rem;
+  }
+
+  h3 {
+    font-size: 1.1rem;
+  }
+
+  /* Garantir que inputs sejam responsivos */
+  input, select, textarea {
+    font-size: 16px !important; /* Previne zoom no iOS */
+    max-width: 100%;
+  }
+
+  /* Ajustar diálogos e modais */
+  [role="dialog"] {
+    max-width: 95vw !important;
+    max-height: 90vh !important;
+  }
+
+  /* Melhorar scroll em containers */
+  .overflow-auto, .overflow-y-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Ajustes para telas muito pequenas (< 375px) */
+@media (max-width: 374px) {
+  .dashboard-content {
+    padding: 0.25rem !important;
+  }
+
+  h1 {
+    font-size: 1.25rem;
+  }
+
+  h2 {
+    font-size: 1.1rem;
+  }
+
+  button {
+    font-size: 0.875rem;
+  }
+}
+
+/* Garantir que o Sheet (sidebar mobile) funcione corretamente */
+@media (max-width: 767px) {
+  /* Overlay do Sheet */
+  [data-radix-dialog-overlay] {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 90 !important;
+  }
+
+  /* Conteúdo do Sheet - Altura total FORÇADA com máxima especificidade */
+  [data-radix-dialog-content],
+  [data-radix-dialog-content][data-state="open"],
+  [data-radix-dialog-content][data-state="closed"] {
+    position: fixed !important;
+    z-index: 100 !important;
+    inset: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    min-height: 100vh !important;
+    min-height: 100dvh !important;
+    max-height: 100vh !important;
+    max-height: 100dvh !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+  }
+
+  /* Garantir que o container interno também ocupe toda altura */
+  [data-radix-dialog-content] > div,
+  [data-radix-dialog-content] > div:first-child {
+    height: 100vh !important;
+    height: 100dvh !important;
+    min-height: 100vh !important;
+    min-height: 100dvh !important;
+    max-height: 100vh !important;
+    max-height: 100dvh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+  }
+
+  /* Prevenir scroll do body quando o Sheet está aberto */
+  body:has([data-state="open"]) {
+    overflow: hidden;
+  }
+
+  /* Ajustar diálogos para mobile */
+  [role="dialog"]:not([data-radix-dialog-content]) {
+    max-width: 95vw !important;
+    width: 95vw !important;
+  }
+
+  /* Ajustar cards com largura fixa */
+  .card, [class*="w-["] {
+    max-width: 100% !important;
+  }
+
+  /* Ajustar tabelas para serem scrolláveis */
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Ajustar células de tabela */
+  td, th {
+    min-width: 80px;
+    max-width: 200px;
+  }
+
+  /* Ajustar selects e inputs */
+  select, input[type="text"], input[type="email"], input[type="tel"], textarea {
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  /* Garantir que o nav do sidebar ocupe toda altura disponível */
+  nav.flex-1 {
+    flex: 1 1 auto !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    min-height: 0 !important;
+  }
+}
+
+/* Tablet adjustments */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .dashboard-content {
+    padding: 1rem;
+  }
+}
+
+/* Garantir que o sidebar mobile não cause overflow */
+@media (max-width: 767px) {
+  aside {
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: 100vh;
+    z-index: 100;
+  }
+}
+
 /* High contrast mode support */
 @media (forced-colors: active) {
   .bg-cerrado-green3 {

@@ -454,8 +454,8 @@ const Dashboard = () => {
           mobileOpen={mobileSidebarOpen}
           onMobileOpenChange={setMobileSidebarOpen}
         />
-        <div className="flex-1 flex flex-col h-screen overflow-hidden md:ml-0">
-          <header className="bg-white text-gray-900 p-2 md:p-3 h-14 md:h-[80px] shadow-md sticky top-0 z-40 border-b border-gray-200">
+        <div className="flex-1 flex flex-col min-h-screen md:h-screen w-full">
+          <header className="bg-white text-gray-900 p-2 md:p-3 h-14 md:h-[80px] shadow-md z-30 border-b border-gray-200 flex-shrink-0">
             <div className="flex items-center h-full">
               {/* Botão Menu Mobile */}
               <Button
@@ -550,7 +550,7 @@ const Dashboard = () => {
               </div>
             </div>
           </header>
-          <main className="flex-1 dashboard-content bg-background text-foreground p-2 sm:p-4 md:p-6 overflow-auto h-[calc(100vh-56px)] md:h-[calc(100vh-80px)]">
+          <main className="flex-1 dashboard-content bg-background text-foreground p-2 sm:p-4 md:p-6 overflow-y-auto overflow-x-hidden w-full">
             {activeTab === "home" && (
               (userData.role === 'Comercial' || userData.role === 'Diretor Comercial') ? (
                 <div className="h-full flex items-center justify-center flex-col">

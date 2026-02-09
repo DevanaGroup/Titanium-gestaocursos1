@@ -771,17 +771,17 @@ export const LessonManagement = () => {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex-1 min-w-0">
               <CardTitle className="flex items-center gap-2">
-                <BookOpen className="h-5 w-5" />
-                Gerenciamento de Aulas
+                <BookOpen className="h-5 w-5 shrink-0" />
+                <span className="truncate">Gerenciamento de Aulas</span>
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="mt-1">
                 Crie e gerencie as aulas dos cursos disponíveis no sistema
               </CardDescription>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button type="button" variant="ghost" size="icon" className="h-10 w-10 shrink-0 text-muted-foreground hover:text-foreground">
@@ -807,10 +807,10 @@ export const LessonManagement = () => {
               </Button>
               <Button
                 onClick={() => setIsAddDialogOpen(true)}
-                className="bg-red-500 hover:bg-red-600"
+                className="bg-red-500 hover:bg-red-600 whitespace-nowrap"
               >
-                <Plus className="h-4 w-4 mr-2" />
-                Nova Aula
+                <Plus className="h-4 w-4 md:mr-2" />
+                <span className="hidden md:inline">Nova Aula</span>
               </Button>
             </div>
           </div>

@@ -24,6 +24,7 @@ import {
   UserCircle,
   Eye,
   EyeOff,
+  Menu,
 } from "lucide-react";
 import { SidebarProvider } from "@/contexts/SidebarContext";
 import CustomSidebar from "@/components/CustomSidebar";
@@ -74,6 +75,7 @@ const AdminDatabase = () => {
   const [isImportComplete, setIsImportComplete] = useState(false);
   const [teacherDefaultPassword, setTeacherDefaultPassword] = useState("");
   const [showTeacherPassword, setShowTeacherPassword] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   // Verificar permissão de acesso
   useEffect(() => {
@@ -245,8 +247,13 @@ const AdminDatabase = () => {
   if (isLoading) {
     return (
       <SidebarProvider>
-        <div className="flex h-screen">
-          <CustomSidebar activeTab="database" onTabChange={() => {}} />
+        <div className="flex h-screen w-full overflow-hidden">
+          <CustomSidebar 
+            activeTab="database" 
+            onTabChange={() => {}}
+            mobileOpen={mobileSidebarOpen}
+            onMobileOpenChange={setMobileSidebarOpen}
+          />
           <div className="flex-1 flex items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
@@ -257,21 +264,42 @@ const AdminDatabase = () => {
 
   return (
     <SidebarProvider>
-      <div className="flex h-screen">
-        <CustomSidebar activeTab="database" onTabChange={(tab) => navigate(`/${tab}`)} />
+      <div className="flex h-screen w-full overflow-hidden">
+        <CustomSidebar 
+          activeTab="database" 
+          onTabChange={(tab) => navigate(`/${tab}`)}
+          mobileOpen={mobileSidebarOpen}
+          onMobileOpenChange={setMobileSidebarOpen}
+        />
         
-        <div className="flex-1 overflow-auto bg-gray-50">
-          <div className="p-6 max-w-7xl mx-auto">
-            {/* Header */}
-            <div className="mb-6">
-              <div className="flex items-center gap-3 mb-2">
-                <Database className="h-8 w-8 text-primary" />
-                <h1 className="text-3xl font-bold text-gray-900">Gerenciar Banco de Dados</h1>
-              </div>
-              <p className="text-gray-600">
-                Cadastre e importe dados em massa via CSV. Gerencie colaboradores, professores, cursos e mais.
-              </p>
+        <div className="flex-1 flex flex-col min-h-screen md:h-screen w-full">
+          {/* Header Mobile */}
+          <header className="bg-white text-gray-900 p-2 md:p-3 h-14 md:h-[80px] shadow-md z-30 border-b border-gray-200 flex-shrink-0 md:hidden">
+            <div className="flex items-center h-full">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setMobileSidebarOpen(true)}
+                className="text-gray-900 hover:bg-gray-100 h-10 w-10"
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+              <h1 className="ml-3 text-lg font-semibold truncate">Banco de Dados</h1>
             </div>
+          </header>
+
+          <div className="flex-1 overflow-y-auto overflow-x-hidden bg-gray-50 p-2 sm:p-4 md:p-6">
+            <div className="max-w-7xl mx-auto">
+              {/* Header Desktop */}
+              <div className="mb-6 hidden md:block">
+                <div className="flex items-center gap-3 mb-2">
+                  <Database className="h-8 w-8 text-primary" />
+                  <h1 className="text-3xl font-bold text-gray-900">Gerenciar Banco de Dados</h1>
+                </div>
+                <p className="text-gray-600">
+                  Cadastre e importe dados em massa via CSV. Gerencie colaboradores, professores, cursos e mais.
+                </p>
+              </div>
 
             {/* Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -407,17 +435,18 @@ const AdminDatabase = () => {
                 />
               </TabsContent>
             </Tabs>
+
+            {/* Progress Dialog */}
+            <ImportProgressDialog
+              open={showProgressDialog}
+              onOpenChange={setShowProgressDialog}
+              progress={importProgress}
+              isComplete={isImportComplete}
+              importType={currentImportType}
+            />
+            </div>
           </div>
         </div>
-
-        {/* Progress Dialog */}
-        <ImportProgressDialog
-          open={showProgressDialog}
-          onOpenChange={setShowProgressDialog}
-          progress={importProgress}
-          isComplete={isImportComplete}
-          importType={currentImportType}
-        />
       </div>
     </SidebarProvider>
   );

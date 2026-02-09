@@ -83,50 +83,50 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
   }, [mobileOpen]);
 
   // Auto-expandir menu pai quando um sub-item estiver ativo
-  // No mobile, sempre expandir os menus
   useEffect(() => {
-    if (isMobile) {
+    // Verificar se algum sub-item de Tarefas está ativo
+    const isTasksSubItemActive = 
+      activeTab === 'tasks' || 
+      activeTab === 'tasks-archived' || 
+      location.pathname === '/tasks' || 
+      location.pathname.startsWith('/tasks/');
+    
+    if (isTasksSubItemActive) {
       setTasksExpanded(true);
+    } else if (!isMobile) {
+      // No desktop, colapsar se não estiver ativo
+      setTasksExpanded(false);
+    }
+    
+    // Verificar se algum sub-item de Cursos está ativo
+    const isCoursesSubItemActive = 
+      activeTab === 'courses' || 
+      activeTab === 'lessons' || 
+      activeTab === 'teachers' ||
+      location.pathname === '/courses' || 
+      location.pathname === '/lessons' || 
+      location.pathname === '/teachers';
+    
+    if (isCoursesSubItemActive) {
       setCoursesExpanded(true);
+    } else if (!isMobile) {
+      setCoursesExpanded(false);
+    }
+    
+    // Verificar se algum sub-item de Financeiros está ativo
+    const isFinancialSubItemActive = 
+      activeTab === 'financial' ||
+      activeTab === 'expense-requests' ||
+      activeTab === 'financial-incomes' ||
+      activeTab === 'financial-expenses' ||
+      activeTab === 'financial-teacher-payments' ||
+      activeTab === 'financial-reports' ||
+      location.pathname.startsWith('/financial');
+    
+    if (isFinancialSubItemActive) {
       setFinancialExpanded(true);
-    } else {
-      // Verificar se algum sub-item de Tarefas está ativo
-      const isTasksSubItemActive = 
-        activeTab === 'tasks' || 
-        activeTab === 'tasks-archived' || 
-        location.pathname === '/tasks' || 
-        location.pathname.startsWith('/tasks/');
-      
-      if (isTasksSubItemActive) {
-        setTasksExpanded(true);
-      }
-      
-      // Verificar se algum sub-item de Cursos está ativo
-      const isCoursesSubItemActive = 
-        activeTab === 'courses' || 
-        activeTab === 'lessons' || 
-        activeTab === 'teachers' ||
-        location.pathname === '/courses' || 
-        location.pathname === '/lessons' || 
-        location.pathname === '/teachers';
-      
-      if (isCoursesSubItemActive) {
-        setCoursesExpanded(true);
-      }
-      
-      // Verificar se algum sub-item de Financeiros está ativo
-      const isFinancialSubItemActive = 
-        activeTab === 'financial' ||
-        activeTab === 'expense-requests' ||
-        activeTab === 'financial-incomes' ||
-        activeTab === 'financial-expenses' ||
-        activeTab === 'financial-teacher-payments' ||
-        activeTab === 'financial-reports' ||
-        location.pathname.startsWith('/financial');
-      
-      if (isFinancialSubItemActive) {
-        setFinancialExpanded(true);
-      }
+    } else if (!isMobile) {
+      setFinancialExpanded(false);
     }
   }, [activeTab, isMobile, location.pathname]);
 
@@ -477,22 +477,22 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
   const SidebarContent = () => (
     <>
       {/* Logo area */}
-        <div className="flex items-center justify-center p-2 md:p-3 h-14 md:h-[80px] border-b border-border bg-white relative overflow-hidden" style={{ backgroundRepeat: 'no-repeat' }}>
+        <div className="flex items-center justify-between p-2 md:p-3 h-14 md:h-[80px] border-b border-border bg-white relative overflow-hidden" style={{ backgroundRepeat: 'no-repeat' }}>
         <Logo variant="default" />
         {isMobile && (
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="ml-auto h-7 w-7 p-0 text-gray-900 hover:bg-gray-100 hover:text-gray-900 absolute right-3"
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
             onClick={() => setIsMobileOpen(false)}
           >
-            <X size={16} />
+            <X className="h-4 w-4" />
           </Button>
         )}
       </div>
 
       {/* Menu items */}
-      <nav className="flex-1 overflow-y-auto py-2">
+      <nav className="flex-1 overflow-y-auto py-2 h-full">
         <div className="space-y-3 px-2">
           {availableMenuItems.map((item) => {
             return (
@@ -513,10 +513,8 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      if (!isMobile) {
-                        setTasksExpanded(!tasksExpanded);
-                      }
-                      // No mobile, não precisa fazer nada pois já está sempre expandido
+                      // Sempre permitir expansão/colapso, tanto no mobile quanto no desktop
+                      setTasksExpanded(!tasksExpanded);
                     }}
                   >
                     <div className="flex items-center">
@@ -603,9 +601,8 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      if (!isMobile) {
-                        setCoursesExpanded(!coursesExpanded);
-                      }
+                      // Sempre permitir expansão/colapso, tanto no mobile quanto no desktop
+                      setCoursesExpanded(!coursesExpanded);
                     }}
                   >
                     <div className="flex items-center">
@@ -713,9 +710,8 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      if (!isMobile) {
-                        setFinancialExpanded(!financialExpanded);
-                      }
+                      // Sempre permitir expansão/colapso, tanto no mobile quanto no desktop
+                      setFinancialExpanded(!financialExpanded);
                     }}
                   >
                     <div className="flex items-center">
@@ -956,9 +952,32 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
     <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
       <SheetContent 
         side="left" 
-          className="w-[85vw] max-w-[320px] p-0 bg-white border-r border-border [&>button]:hidden z-50"
+        className="w-[280px] max-w-[85vw] p-0 bg-white border-r border-border z-[100]"
+        style={{ 
+          height: '100vh',
+          minHeight: '100vh',
+          maxHeight: '100vh',
+          position: 'fixed',
+          top: 0,
+          bottom: 0,
+          left: 0,
+          inset: '0 auto 0 0',
+          display: 'flex',
+          flexDirection: 'column'
+        }}
       >
-        <div className="flex flex-col h-full overflow-hidden">
+        <div 
+          className="flex flex-col" 
+          style={{ 
+            height: '100vh',
+            minHeight: '100vh',
+            maxHeight: '100vh',
+            flex: '1 1 auto',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
+          }}
+        >
           <SidebarContent />
         </div>
       </SheetContent>
