@@ -1553,7 +1553,15 @@ export const createLessonRequest = onRequest(
         res.status(400).json({ error: "Curso não encontrado." });
         return;
       }
+      // Protocolo único: TIT-YYYYMMDD-XXXX (origem externa)
+      const now = new Date();
+      const yyyymmdd = now.toISOString().slice(0, 10).replace(/-/g, "");
+      const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
+      const protocol = `TIT-${yyyymmdd}-${rand}`;
+
       const lessonData: Record<string, unknown> = {
+        protocol,
+        origin: "Externo",
         email: String(body.email).trim(),
         requesterName: String(body.requesterName).trim(),
         consultantName: String(body.consultantName).trim(),
@@ -1586,7 +1594,12 @@ export const createLessonRequest = onRequest(
         Object.entries(lessonData).filter(([, v]) => v !== undefined)
       ) as Record<string, unknown>;
       const ref = await admin.firestore().collection("lessons").add(clean);
-      res.status(200).json({ success: true, id: ref.id, message: "Solicitação de aula enviada com sucesso." });
+      res.status(200).json({
+        success: true,
+        id: ref.id,
+        protocol: protocol as string,
+        message: "Solicitação de aula enviada com sucesso.",
+      });
     } catch (e) {
       logger.error("createLessonRequest error", e);
       res.status(500).json({ error: "Erro ao registrar solicitação. Tente novamente." });
