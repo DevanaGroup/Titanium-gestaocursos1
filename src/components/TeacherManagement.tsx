@@ -20,7 +20,7 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { Search, Edit, Trash2, UserCircle, Plus, MoreVertical, Ban, PowerOff, CircleAlert } from "lucide-react";
+import { Search, Edit, Trash2, UserCircle, Plus, MoreVertical, Ban, PowerOff, CircleAlert, Filter } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -1376,14 +1376,24 @@ export const TeacherManagement = () => {
         </CardHeader>
         <CardContent className="min-h-[600px]">
           <div className="mb-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar professores..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+            <div className="flex flex-col lg:flex-row gap-3 lg:justify-end">
+              {/* Campo de busca */}
+              <div className="relative flex-1 max-w-md">
+                <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <Search className="text-muted-foreground/70 w-3.5 h-3.5" />
+                </div>
+                <Input
+                  placeholder="Buscar professores..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 h-9 text-sm"
+                />
+              </div>
+              
+              {/* Botão de filtro */}
+              <Button variant="outline" size="icon" className="h-9 w-9">
+                <Filter className="h-4 w-4" />
+              </Button>
             </div>
           </div>
 

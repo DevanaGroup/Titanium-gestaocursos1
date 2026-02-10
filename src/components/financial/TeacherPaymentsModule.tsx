@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -9,7 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, GraduationCap, FileText } from "lucide-react";
+import { Search, GraduationCap, FileText, Filter } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -169,14 +170,24 @@ export const TeacherPaymentsModule = () => {
           <CardDescription>
             Referente: Aula aplicada pelo professor. Dados para pagamento disponíveis no cadastro do professor.
           </CardDescription>
-          <div className="relative pt-2">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por professor ou curso..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 max-w-sm"
-            />
+          <div className="flex flex-col lg:flex-row gap-3">
+            {/* Campo de busca */}
+            <div className="relative flex-1 max-w-md">
+              <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                <Search className="text-muted-foreground/70 w-3.5 h-3.5" />
+              </div>
+              <Input
+                placeholder="Buscar por professor ou curso..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 h-9 text-sm"
+              />
+            </div>
+            
+            {/* Botão de filtro */}
+            <Button variant="outline" size="icon" className="h-9 w-9">
+              <Filter className="h-4 w-4" />
+            </Button>
           </div>
         </CardHeader>
         <CardContent>

@@ -19,7 +19,7 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { Search, Edit, Trash2, Plus, GraduationCap, Eye, MoreVertical } from "lucide-react";
+import { Search, Edit, Trash2, Plus, GraduationCap, Eye, MoreVertical, Filter } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -262,14 +262,24 @@ export const CourseManagement = () => {
         </CardHeader>
         <CardContent className="h-[600px] overflow-y-auto">
           <div className="mb-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                placeholder="Buscar cursos por título, descrição ou instrutor..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+            <div className="flex flex-col lg:flex-row gap-3 lg:justify-end">
+              {/* Campo de busca */}
+              <div className="relative flex-1 max-w-md">
+                <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <Search className="text-muted-foreground/70 w-3.5 h-3.5" />
+                </div>
+                <Input
+                  placeholder="Buscar cursos..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 h-9 text-sm"
+                />
+              </div>
+              
+              {/* Botão de filtro */}
+              <Button variant="outline" size="icon" className="h-9 w-9">
+                <Filter className="h-4 w-4" />
+              </Button>
             </div>
           </div>
 

@@ -20,7 +20,7 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { Search, Edit, Trash2, Eye, Users, CalendarIcon, History, Plus, MoreVertical, Ban, PowerOff, CircleAlert } from "lucide-react";
+import { Search, Edit, Trash2, Eye, Users, CalendarIcon, History, Plus, MoreVertical, Ban, PowerOff, CircleAlert, Filter } from "lucide-react";
 import { toast } from "sonner";
 import { 
   Select, 
@@ -1173,16 +1173,26 @@ export const CollaboratorManagement = () => {
             Adicionar Colaborador
           </Button>
         </div>
-        <div className="relative mt-4 flex justify-end">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-            type="search"
-            placeholder="Buscar colaborador..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 w-80"
-          />
+        <div className="mt-4 flex justify-end">
+          <div className="flex flex-col lg:flex-row gap-3">
+            {/* Campo de busca */}
+            <div className="relative flex-1 max-w-md">
+              <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                <Search className="text-muted-foreground/70 w-3.5 h-3.5" />
+              </div>
+              <Input
+                type="search"
+                placeholder="Buscar colaborador..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 h-9 text-sm"
+              />
+            </div>
+            
+            {/* Botão de filtro */}
+            <Button variant="outline" size="icon" className="h-9 w-9">
+              <Filter className="h-4 w-4" />
+            </Button>
           </div>
         </div>
       </div>

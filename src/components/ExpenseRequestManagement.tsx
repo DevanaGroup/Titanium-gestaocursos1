@@ -644,12 +644,14 @@ export const ExpenseRequestManagement = () => {
             <div className="flex flex-col lg:flex-row gap-3">
               {/* Campo de busca à esquerda */}
               <div className="relative flex-1">
-                <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-muted-foreground/70 w-3.5 h-3.5 z-10" />
+                <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <Search className="text-muted-foreground/70 w-3.5 h-3.5" />
+                </div>
                 <Input
                   placeholder="Buscar..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 responsive-input h-9 text-sm"
+                  className="pl-9 h-9 text-sm"
                 />
               </div>
 
@@ -658,30 +660,10 @@ export const ExpenseRequestManagement = () => {
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className={`h-9 px-3 gap-2 ${
-                      statusFilter !== "all" || 
-                      categoryFilter !== "all" || 
-                      urgencyFilter !== "all" || 
-                      monthFilter !== "all"
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : ""
-                    }`}
+                    size="icon"
+                    className="h-9 w-9"
                   >
                     <Filter className="h-4 w-4" />
-                    <span className="hidden sm:inline">Filtros</span>
-                    {(statusFilter !== "all" || 
-                      categoryFilter !== "all" || 
-                      urgencyFilter !== "all" || 
-                      monthFilter !== "all") && (
-                      <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
-                        {[
-                          statusFilter !== "all" ? 1 : 0,
-                          categoryFilter !== "all" ? 1 : 0,
-                          urgencyFilter !== "all" ? 1 : 0,
-                          monthFilter !== "all" ? 1 : 0,
-                        ].reduce((a, b) => a + b, 0)}
-                      </Badge>
-                    )}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-80 p-4" align="end">

@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/table";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarDays, Plus, Edit, Trash2, CalendarIcon, Search, MoreVertical } from "lucide-react";
+import { CalendarDays, Plus, Edit, Trash2, CalendarIcon, Search, MoreVertical, Filter } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -349,14 +349,24 @@ export const EventosManagement: React.FC<EventosManagementProps> = ({ userId, us
 
         <CardContent className="min-h-[480px]">
           <div className="mb-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar eventos..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+            <div className="flex flex-col lg:flex-row gap-3 lg:justify-end">
+              {/* Campo de busca */}
+              <div className="relative flex-1 max-w-md">
+                <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <Search className="text-muted-foreground/70 w-3.5 h-3.5" />
+                </div>
+                <Input
+                  placeholder="Buscar eventos..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 h-9 text-sm"
+                />
+              </div>
+              
+              {/* Botão de filtro */}
+              <Button variant="outline" size="icon" className="h-9 w-9">
+                <Filter className="h-4 w-4" />
+              </Button>
             </div>
           </div>
 

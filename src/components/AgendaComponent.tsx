@@ -27,12 +27,19 @@ import {
   Users,
   Search,
   UserCheck,
-  AlertCircle
+  AlertCircle,
+  Filter,
+  X
 } from "lucide-react";
 import { format, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { auth } from '@/config/firebase';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   getUserAgendaForMonth,
   createAgendaEvent,
@@ -279,40 +286,87 @@ export const AgendaComponent: React.FC<AgendaComponentProps> = ({
         <CardContent>
           <div className="space-y-4">
             {/* Filtros */}
-            <div className="flex flex-wrap gap-4">
-              <div className="flex-1 min-w-[200px]">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <Input
-                    placeholder="Buscar eventos..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
+            <div className="flex flex-col lg:flex-row gap-3">
+              {/* Campo de busca */}
+              <div className="relative flex-1 max-w-md">
+                <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <Search className="text-muted-foreground/70 w-3.5 h-3.5" />
                 </div>
+                <Input
+                  placeholder="Buscar eventos..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 h-9 text-sm"
+                />
               </div>
-              <Select value={filterType} onValueChange={(value) => setFilterType(value as AgendaEventType | 'all')}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Filtrar por tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os tipos</SelectItem>
-                  {Object.values(AgendaEventType).map(type => (
-                    <SelectItem key={type} value={type}>{type}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as AgendaEventStatus | 'all')}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Filtrar por status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os status</SelectItem>
-                  {Object.values(AgendaEventStatus).map(status => (
-                    <SelectItem key={status} value={status}>{status}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              
+              {/* Botão de filtro */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="icon" className="h-9 w-9">
+                    <Filter className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-4" align="end">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-semibold text-sm">Filtros</h4>
+                      {(filterType !== "all" || filterStatus !== "all") && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setFilterType("all");
+                            setFilterStatus("all");
+                          }}
+                          className="h-7 px-2 text-xs"
+                        >
+                          <X className="h-3 w-3 mr-1" />
+                          Limpar
+                        </Button>
+                      )}
+                    </div>
+
+                    <div className="space-y-3">
+                      {/* Filtro de Tipo */}
+                      <div className="space-y-2">
+                        <Label htmlFor="filter-type" className="text-xs font-medium">
+                          Tipo
+                        </Label>
+                        <Select value={filterType} onValueChange={(value) => setFilterType(value as AgendaEventType | 'all')}>
+                          <SelectTrigger id="filter-type" className="h-9">
+                            <SelectValue placeholder="Tipo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Todos os tipos</SelectItem>
+                            {Object.values(AgendaEventType).map(type => (
+                              <SelectItem key={type} value={type}>{type}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Filtro de Status */}
+                      <div className="space-y-2">
+                        <Label htmlFor="filter-status" className="text-xs font-medium">
+                          Status
+                        </Label>
+                        <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as AgendaEventStatus | 'all')}>
+                          <SelectTrigger id="filter-status" className="h-9">
+                            <SelectValue placeholder="Status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Todos os status</SelectItem>
+                            {Object.values(AgendaEventStatus).map(status => (
+                              <SelectItem key={status} value={status}>{status}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
 
             {/* Layout principal */}
