@@ -13,7 +13,8 @@
     "create-client-folders": "tsx src/scripts/createClientFolders.ts",
     "update-hierarchy": "tsx src/scripts/updateHierarchy.ts",
     "test:dues": "tsx src/scripts/testFinancialDues.ts",
-    "create-nivel1": "tsx src/scripts/createNivel1UserDirect.ts"
+    "create-nivel1": "tsx src/scripts/createNivel1UserDirect.ts",
+    "migrate-lessons-protocol-origin": "node --env-file=.env ./node_modules/.bin/tsx src/scripts/migrateLessonsProtocolAndOrigin.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.40.1",

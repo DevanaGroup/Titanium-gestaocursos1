@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { FUNCTIONS_BASE_URL } from "@/config/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,11 +55,25 @@ const implantModelOptionsFaseCirurgica = [
 const implantModelOptionsCirurgiaGuiada = ["b-fix (Profile)"];
 const implantModelOptionsZigomatico = ["Profile", "Flat"];
 
+/** Exibe o nome do modelo mantendo "(Profile)" sempre em inglês, independente da tradução. */
+function implantModelLabel(model: string): React.ReactNode {
+  if (model.endsWith(" (Profile)")) {
+    const prefix = model.slice(0, -" (Profile)".length);
+    return <>{prefix} <span translate="no">(Profile)</span></>;
+  }
+  if (model === "Profile" || model === "Flat") {
+    return <span translate="no">{model}</span>;
+  }
+  return model;
+}
+
 export default function LessonRequestPage() {
   const [courses, setCourses] = useState<CourseOption[]>([]);
   const [loadingCourses, setLoadingCourses] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [submittedProtocol, setSubmittedProtocol] = useState<string>("");
+  const [submittedId, setSubmittedId] = useState<string>("");
 
   const [form, setForm] = useState({
     email: "",
@@ -148,6 +162,8 @@ export default function LessonRequestPage() {
         setSubmitting(false);
         return;
       }
+      setSubmittedProtocol((data.protocol as string) || "");
+      setSubmittedId((data.id as string) || "");
       setSuccess(true);
       setSubmitting(false);
       toast.success("Solicitação enviada com sucesso!");
@@ -173,6 +189,68 @@ export default function LessonRequestPage() {
     return [];
   };
 
+  // Materiais calculados automaticamente (igual ao LessonManagement)
+  const calculatedMaterials = useMemo(() => {
+    if (form.hasHandsOn !== "Sim") return undefined;
+    const numberOfStudents = parseInt(form.numberOfStudents) || 0;
+    if (numberOfStudents <= 0) return undefined;
+    const theme = form.lessonTheme;
+    const implantModels = form.implantModels || [];
+    const motorsNeeded = Math.ceil(numberOfStudents / 2);
+
+    if (theme === "Fase Cirúrgica" && implantModels.length > 0) {
+      const maxillasPerStudent = 1;
+      const hasOnlyProfile =
+        implantModels.length === 1 &&
+        (implantModels[0] === "e-fix (Profile)" || implantModels[0] === "b-fix (Profile)");
+      const implantsPerStudent = hasOnlyProfile
+        ? 2
+        : Math.min(Math.max(implantModels.length, 2), 4);
+      const surgicalKitsPerMotor = 1;
+      return {
+        maxillasPerStudent,
+        implantsPerStudent,
+        implantTypes: implantModels,
+        surgicalKitsPerMotor,
+        motorsNeeded,
+        totalMaxillas: maxillasPerStudent * numberOfStudents,
+        totalImplants: implantsPerStudent * numberOfStudents,
+        totalSurgicalKits: surgicalKitsPerMotor * motorsNeeded,
+      };
+    }
+    if (theme === "Cirurgia Guiada" && implantModels.length > 0) {
+      const maxillasPerStudent = 1;
+      const implantsPerStudent = 4;
+      const surgicalKitsPerMotor = 1;
+      return {
+        maxillasPerStudent,
+        implantsPerStudent,
+        implantTypes: implantModels,
+        surgicalKitsPerMotor,
+        motorsNeeded,
+        totalMaxillas: maxillasPerStudent * numberOfStudents,
+        totalImplants: implantsPerStudent * numberOfStudents,
+        totalSurgicalKits: surgicalKitsPerMotor * motorsNeeded,
+      };
+    }
+    if (theme === "Zigomático" && implantModels.length > 0) {
+      const maxillasPerStudent = 1;
+      const implantsPerStudent = implantModels.length;
+      const surgicalKitsPerMotor = 1;
+      return {
+        maxillasPerStudent,
+        implantsPerStudent,
+        implantTypes: implantModels,
+        surgicalKitsPerMotor,
+        motorsNeeded,
+        totalMaxillas: maxillasPerStudent * numberOfStudents,
+        totalImplants: implantsPerStudent * numberOfStudents,
+        totalSurgicalKits: surgicalKitsPerMotor * motorsNeeded,
+      };
+    }
+    return undefined;
+  }, [form.hasHandsOn, form.lessonTheme, form.implantModels, form.numberOfStudents]);
+
   if (success) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 flex flex-col items-center justify-center p-4">
@@ -188,9 +266,33 @@ export default function LessonRequestPage() {
             <CardDescription>
               Sua solicitação de aula foi registrada. A equipe entrará em contato em breve.
             </CardDescription>
+            <div className="mt-4 p-4 rounded-lg bg-muted/50 border border-border">
+              <p className="text-sm font-medium text-muted-foreground mb-1">
+                {submittedProtocol?.startsWith("TIT-")
+                  ? "Informe este protocolo à central para acompanhar sua solicitação:"
+                  : "Informe este número à central para acompanhar sua solicitação:"}
+              </p>
+              <p className="font-mono text-xl font-bold tracking-wide text-foreground break-all">
+                {submittedProtocol || submittedId || "—"}
+              </p>
+              {(submittedProtocol || submittedId) && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="mt-2"
+                  onClick={() => {
+                    const n = submittedProtocol || submittedId;
+                    if (n) void navigator.clipboard.writeText(n).then(() => toast.success("Copiado!"));
+                  }}
+                >
+                  Copiar protocolo
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
-            <Button variant="outline" className="w-full" onClick={() => setSuccess(false)}>
+            <Button variant="outline" className="w-full" onClick={() => { setSuccess(false); setSubmittedProtocol(""); setSubmittedId(""); }}>
               Enviar outra solicitação
             </Button>
           </CardContent>
@@ -528,7 +630,7 @@ export default function LessonRequestPage() {
                             checked={form.implantModels.includes(model)}
                             onCheckedChange={() => toggleImplant(model)}
                           />
-                          <Label htmlFor={`implant-${model.replace(/\s+/g, "-")}`} className="cursor-pointer">{model}</Label>
+                          <Label htmlFor={`implant-${model.replace(/\s+/g, "-")}`} className="cursor-pointer">{implantModelLabel(model)}</Label>
                         </div>
                       ))}
                     </div>
@@ -540,32 +642,113 @@ export default function LessonRequestPage() {
                   </div>
                 )}
                 {form.lessonTheme === "Cirurgia Guiada" && (
-                  <div className="space-y-2">
-                    <Label className="font-semibold">Favor selecionar quais modelos de implante serão utilizados no curso:</Label>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="implant-cirurgia-bfix-profile"
-                        checked={form.implantModels.includes("b-fix (Profile)")}
-                        onCheckedChange={() => toggleImplant("b-fix (Profile)")}
-                      />
-                      <Label htmlFor="implant-cirurgia-bfix-profile" className="cursor-pointer">b-fix (Profile)</Label>
+                  <div className="space-y-4">
+                    <div className="bg-red-500 text-white font-bold py-2 px-4 rounded-t-lg">
+                      Orientações para Hands-on de Cirurgia Guiada
+                    </div>
+                    <div className="p-4 bg-white dark:bg-gray-900 rounded-lg border space-y-2 text-sm">
+                      <p>
+                        Cada aluno (ou o curso) deve arcar com o preço de custo do modelo (mandíbula edêntula Nacional Ossos) e das guias cirúrgicas*. A Titaniumfix fornece os implantes (4 por aluno de acordo com a preferência do professor que irá ministrar a aula).
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        *Há a possibilidade do curso solicitante fazer parceria com um planning center local para redução do custo de produção das guias (parceiros locais costumam doar as guias para captação de clientes), neste caso as anilhas são bonificadas pela Titaniumfix.
+                      </p>
+                    </div>
+                    <div className="p-4 bg-white dark:bg-gray-900 rounded-lg border space-y-2">
+                      <Label className="font-semibold">Favor selecionar quais modelos de implante serão utilizados no curso:</Label>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="implant-cirurgia-bfix-profile"
+                          checked={form.implantModels.includes("b-fix (Profile)")}
+                          onCheckedChange={() => toggleImplant("b-fix (Profile)")}
+                        />
+                        <Label htmlFor="implant-cirurgia-bfix-profile" className="cursor-pointer">{implantModelLabel("b-fix (Profile)")}</Label>
+                      </div>
+                    </div>
+                    <div className="p-4 bg-white dark:bg-gray-900 rounded-lg border">
+                      <p className="font-semibold text-sm">Os materiais contra-ângulo e motor de implante são responsabilidade do curso/alunos!</p>
                     </div>
                   </div>
                 )}
                 {form.lessonTheme === "Zigomático" && (
-                  <div className="space-y-2">
-                    <Label>Favor selecionar quais modelos de implante serão utilizados no curso: <span className="text-red-500">*</span></Label>
-                    <div className="space-y-2">
-                      {implantModelOptionsZigomatico.map((model) => (
-                        <div key={model} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`implant-zig-${model}`}
-                            checked={form.implantModels.includes(model)}
-                            onCheckedChange={() => toggleImplant(model)}
-                          />
-                          <Label htmlFor={`implant-zig-${model}`} className="cursor-pointer">{model}</Label>
-                        </div>
-                      ))}
+                  <div className="space-y-4">
+                    <div className="bg-red-500 text-white font-bold py-2 px-4 rounded-t-lg uppercase">
+                      Hands-on Zigomático
+                    </div>
+                    <div className="p-4 bg-white dark:bg-gray-900 rounded-lg border space-y-2 text-sm">
+                      <p className="font-medium">Os materiais enviados pela Titaniumfix para essa atividade serão:</p>
+                      <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                        <li>1 crânio por aluno (cobrado o valor de R$ 147,00 por aluno)</li>
+                        <li>1 implante de cada modelo utilizado pelo curso (profile ou Flat)</li>
+                        <li>1 kit cirúrgico para cada motor disponível no curso.</li>
+                      </ul>
+                    </div>
+                    <div className="p-4 bg-white dark:bg-gray-900 rounded-lg border space-y-2">
+                      <Label>Favor selecionar quais modelos de implante serão utilizados no curso: <span className="text-red-500">*</span></Label>
+                      <div className="space-y-2">
+                        {implantModelOptionsZigomatico.map((model) => (
+                          <div key={model} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`implant-zig-${model}`}
+                              checked={form.implantModels.includes(model)}
+                              onCheckedChange={() => toggleImplant(model)}
+                            />
+                            <Label htmlFor={`implant-zig-${model}`} className="cursor-pointer">{implantModelLabel(model)}</Label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Materiais Calculados - Fase Cirúrgica, Cirurgia Guiada, Zigomático */}
+                {["Fase Cirúrgica", "Cirurgia Guiada", "Zigomático"].includes(form.lessonTheme) && calculatedMaterials && (
+                  <div className="mt-4 p-4 bg-white dark:bg-gray-900 rounded-lg border">
+                    <div className="font-semibold mb-3">Materiais Calculados Automaticamente:</div>
+                    <div className="space-y-2 text-sm">
+                      <div>
+                        <span className="font-medium">
+                          {form.lessonTheme === "Zigomático" ? "Crânios:" : form.lessonTheme === "Cirurgia Guiada" ? "Modelo (mandíbula):" : "Maxilas:"}
+                        </span>
+                        <span className="text-gray-600 dark:text-gray-400 ml-2">
+                          {calculatedMaterials.maxillasPerStudent} por aluno
+                          {form.numberOfStudents && parseInt(form.numberOfStudents) > 0 && (
+                            <> = {calculatedMaterials.totalMaxillas} unidades ({form.numberOfStudents} alunos)</>
+                          )}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="font-medium">Implantes:</span>
+                        <span className="text-gray-600 dark:text-gray-400 ml-2">
+                          {form.lessonTheme === "Zigomático" ? "1 de cada modelo por aluno" : `${calculatedMaterials.implantsPerStudent} por aluno`}
+                          {form.numberOfStudents && parseInt(form.numberOfStudents) > 0 && (
+                            <> = {calculatedMaterials.totalImplants} unidades ({form.numberOfStudents} alunos)</>
+                          )}
+                        </span>
+                        {calculatedMaterials.implantTypes?.length > 0 && (
+                          <div className="text-xs text-gray-500 dark:text-gray-500 mt-1 ml-4">
+                            Tipos: {calculatedMaterials.implantTypes.join(", ")}
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <span className="font-medium">Motores:</span>
+                        <span className="text-gray-600 dark:text-gray-400 ml-2">
+                          (1 motor por dupla)
+                          {form.numberOfStudents && parseInt(form.numberOfStudents) > 0 && (
+                            <> = {calculatedMaterials.motorsNeeded} unidades</>
+                          )}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="font-medium">Kits cirúrgicos:</span>
+                        <span className="text-gray-600 dark:text-gray-400 ml-2">
+                          (1 kit por motor)
+                          {form.numberOfStudents && parseInt(form.numberOfStudents) > 0 && (
+                            <> = {calculatedMaterials.totalSurgicalKits} unidades</>
+                          )}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -576,16 +759,18 @@ export default function LessonRequestPage() {
             <div className="space-y-2">
               <Label htmlFor="courseId">Curso <span className="text-red-500">*</span></Label>
               <Select
-                value={form.courseId}
-                onValueChange={(v) => setForm((p) => ({ ...p, courseId: v }))}
+                value={form.courseId && courses.some((c) => c.id === form.courseId) ? form.courseId : ""}
+                onValueChange={(v) => setForm((p) => ({ ...p, courseId: String(v) }))}
                 disabled={loadingCourses}
               >
-                <SelectTrigger>
+                <SelectTrigger id="courseId">
                   <SelectValue placeholder={loadingCourses ? "Carregando..." : "Selecione um curso"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {courses.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.title || c.id}</SelectItem>
+                  {courses.filter((c) => c.id).map((c) => (
+                    <SelectItem key={c.id} value={String(c.id)}>
+                      {String(c.title ?? c.id ?? "")}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>

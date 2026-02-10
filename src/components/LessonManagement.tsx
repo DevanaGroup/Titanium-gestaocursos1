@@ -83,6 +83,9 @@ interface Lesson {
     totalImplants?: number;
     totalSurgicalKits?: number;
   };
+  // Protocolo e origem (identificação da solicitação)
+  protocol?: string;
+  origin?: "Externo" | "Interno";
   // Campos originais (mantidos para compatibilidade)
   title?: string;
   description?: string;
@@ -146,7 +149,9 @@ export const LessonManagement = () => {
     implantModels: [],
     calculatedMaterials: undefined,
     courseId: "",
-    status: 'draft'
+    status: 'draft',
+    protocol: "",
+    origin: "Interno"
   });
 
   // Opções de temas para hands-on
@@ -392,6 +397,8 @@ export const LessonManagement = () => {
           calculatedMaterials: data.calculatedMaterials,
           courseId: data.courseId || "",
           courseTitle: courseTitle,
+          protocol: data.protocol || "",
+          origin: data.origin || "Interno",
           status: data.status || 'draft',
           createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
           updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date()
@@ -510,8 +517,16 @@ export const LessonManagement = () => {
     }
 
     try {
+      // Protocolo único para aula criada internamente: TIT-YYYYMMDD-XXXX
+      const now = new Date();
+      const yyyymmdd = now.toISOString().slice(0, 10).replace(/-/g, "");
+      const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
+      const protocol = `TIT-${yyyymmdd}-${rand}`;
+
       const lessonData = {
         ...newLesson,
+        protocol,
+        origin: "Interno" as const,
         deletedAt: null,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
@@ -549,7 +564,9 @@ export const LessonManagement = () => {
         implantModels: [],
         calculatedMaterials: undefined,
         courseId: "",
-        status: 'draft'
+        status: 'draft',
+        protocol: "",
+        origin: "Interno"
       });
       fetchLessons();
     } catch (error) {
@@ -687,7 +704,9 @@ export const LessonManagement = () => {
         implantModels: [],
         calculatedMaterials: undefined,
         courseId: "",
-        status: 'draft'
+        status: 'draft',
+        protocol: "",
+        origin: "Interno"
       });
       fetchLessons();
     } catch (error) {
@@ -741,7 +760,9 @@ export const LessonManagement = () => {
       implantModels: lesson.implantModels || [],
       calculatedMaterials: lesson.calculatedMaterials,
       courseId: lesson.courseId,
-      status: lesson.status
+      status: lesson.status,
+      protocol: lesson.protocol || "",
+      origin: lesson.origin || "Interno"
     });
     setIsEditDialogOpen(true);
   };
@@ -853,6 +874,8 @@ export const LessonManagement = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="text-center">Protocolo</TableHead>
+                  <TableHead className="text-center">Origem</TableHead>
                   <TableHead className="text-center">Solicitante</TableHead>
                   <TableHead className="text-center">Consultor</TableHead>
                   <TableHead className="text-center">Curso</TableHead>
@@ -870,6 +893,12 @@ export const LessonManagement = () => {
                     className="cursor-pointer hover:bg-muted/50"
                     onClick={() => openEditDialog(lesson)}
                   >
+                    <TableCell className="text-center font-mono text-xs whitespace-nowrap">{lesson.protocol || "-"}</TableCell>
+                    <TableCell className="text-center">
+                      <span className={lesson.origin === "Externo" ? "text-blue-600 dark:text-blue-400 font-medium" : ""}>
+                        {lesson.origin === "Externo" ? "Externo" : "Interno"}
+                      </span>
+                    </TableCell>
                     <TableCell className="text-center font-medium">{lesson.requesterName || "-"}</TableCell>
                     <TableCell className="text-center">{lesson.consultantName || "-"}</TableCell>
                     <TableCell className="text-center">

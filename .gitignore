@@ -15,6 +15,9 @@ dist-ssr
 .env.local
 .env.*.local
 *.env
+serviceAccountKey.json
+firebase-key.json
+firebase-service-account.json
 
 # Editor directories and files
 .vscode/*

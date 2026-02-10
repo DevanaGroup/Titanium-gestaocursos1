@@ -26,6 +26,8 @@ export interface Lesson {
   numberOfStudents?: string;
   locationName?: string;
   lessonTheme?: string;
+  protocol?: string;
+  origin?: "Externo" | "Interno";
   calculatedMaterials?: {
     totalMaxillas?: number;
     totalImplants?: number;
@@ -107,6 +109,8 @@ export function useCourseDetails(courseId: string | undefined) {
               numberOfStudents: (data.numberOfStudents as string) || "",
               locationName: (data.locationName as string) || "",
               lessonTheme: (data.lessonTheme as string) || "",
+              protocol: (data.protocol as string) || undefined,
+              origin: (data.origin as "Externo" | "Interno") || undefined,
               calculatedMaterials: data.calculatedMaterials as Lesson["calculatedMaterials"],
             };
           })
