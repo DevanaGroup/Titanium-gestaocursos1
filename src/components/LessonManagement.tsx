@@ -960,6 +960,23 @@ export const LessonManagement = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Curso */}
+            <div className="space-y-2">
+              <Label htmlFor="courseId">Curso <span className="text-red-500">*</span></Label>
+              <Select value={newLesson.courseId} onValueChange={(value) => setNewLesson(prev => ({ ...prev, courseId: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um curso" />
+                </SelectTrigger>
+                <SelectContent>
+                  {courses.filter((c) => c.id).map((course) => (
+                    <SelectItem key={course.id} value={course.id}>
+                      {course.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* E-mail */}
             <div className="space-y-2">
               <Label htmlFor="email">E-mail <span className="text-red-500">*</span></Label>
@@ -1475,23 +1492,6 @@ export const LessonManagement = () => {
               </div>
             )}
 
-            {/* Curso */}
-            <div className="space-y-2">
-              <Label htmlFor="courseId">Curso <span className="text-red-500">*</span></Label>
-              <Select value={newLesson.courseId} onValueChange={(value) => setNewLesson(prev => ({ ...prev, courseId: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um curso" />
-                </SelectTrigger>
-                <SelectContent>
-                  {courses.filter((c) => c.id).map((course) => (
-                    <SelectItem key={course.id} value={course.id}>
-                      {course.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
             {/* Status */}
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
@@ -1528,6 +1528,23 @@ export const LessonManagement = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Curso */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-courseId">Curso <span className="text-red-500">*</span></Label>
+              <Select value={newLesson.courseId} onValueChange={(value) => setNewLesson(prev => ({ ...prev, courseId: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um curso" />
+                </SelectTrigger>
+                <SelectContent>
+                  {courses.filter((c) => c.id).map((course) => (
+                    <SelectItem key={course.id} value={course.id}>
+                      {course.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* E-mail */}
             <div className="space-y-2">
               <Label htmlFor="edit-email">E-mail <span className="text-red-500">*</span></Label>
@@ -2040,23 +2057,6 @@ export const LessonManagement = () => {
                 )}
               </div>
             )}
-
-            {/* Curso */}
-            <div className="space-y-2">
-              <Label htmlFor="edit-courseId">Curso <span className="text-red-500">*</span></Label>
-              <Select value={newLesson.courseId} onValueChange={(value) => setNewLesson(prev => ({ ...prev, courseId: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um curso" />
-                </SelectTrigger>
-                <SelectContent>
-                  {courses.filter((c) => c.id).map((course) => (
-                    <SelectItem key={course.id} value={course.id}>
-                      {course.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
 
             {/* Status */}
             <div className="space-y-2">

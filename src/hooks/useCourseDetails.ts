@@ -13,6 +13,28 @@ export interface Course {
   instructor?: string;
   price?: number;
   status?: string;
+  // Novos campos
+  courseType?: string[];
+  courseTypeOther?: string;
+  institutionName?: string;
+  coordinatorName?: string;
+  coordinatorContact?: string;
+  consultantId?: string;
+  consultantName?: string;
+  numberOfClasses?: number;
+  brandUsage?: '100%' | '50%' | '30%';
+  assistantProfessor?: string;
+  observation?: string;
+  classes?: Class[];
+}
+
+export interface Class {
+  numberOfStudents: number;
+  shift: 'matutino' | 'vespertino' | 'noturno' | 'integral';
+  startDate: any; // Timestamp do Firestore
+  endDate: any; // Timestamp do Firestore
+  usesTitaniumfix: '100% Titaniumfix' | '50% Titaniumfix' | '10% Titaniumfix' | 'Não usa Titaniumfix' | 'Outro';
+  usesTitaniumfixOther?: string;
 }
 
 export interface Lesson {
@@ -89,6 +111,18 @@ export function useCourseDetails(courseId: string | undefined) {
           instructor: c?.instructor as string | undefined,
           price: c?.price as number | undefined,
           status: c?.status as string | undefined,
+          courseType: c?.courseType as string[] | undefined,
+          courseTypeOther: c?.courseTypeOther as string | undefined,
+          institutionName: c?.institutionName as string | undefined,
+          coordinatorName: c?.coordinatorName as string | undefined,
+          coordinatorContact: c?.coordinatorContact as string | undefined,
+          consultantId: c?.consultantId as string | undefined,
+          consultantName: c?.consultantName as string | undefined,
+          numberOfClasses: c?.numberOfClasses as number | undefined,
+          brandUsage: c?.brandUsage as '100%' | '50%' | '30%' | undefined,
+          assistantProfessor: c?.assistantProfessor as string | undefined,
+          observation: c?.observation as string | undefined,
+          classes: c?.classes as Class[] | undefined,
         });
 
         const lessonsCol = collection(db, "lessons");

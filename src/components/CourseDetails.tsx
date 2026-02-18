@@ -32,9 +32,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, BookOpen, Calendar, Users, DollarSign, Package, Search, Filter } from "lucide-react";
+import { ArrowLeft, BookOpen, Calendar, Users, DollarSign, Package, Search, Filter, Info } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCourseDetails } from "@/hooks/useCourseDetails";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 const TABLE_MIN_HEIGHT = "min-h-[420px]";
 const TABLE_CONTAINER_HEIGHT = "max-h-[420px]";
@@ -56,6 +62,7 @@ export const CourseDetails = () => {
     loading,
   } = useCourseDetails(id);
 
+  const [showDetails, setShowDetails] = useState(false);
   const [searchAulas, setSearchAulas] = useState("");
   const [filterAulasLocal, setFilterAulasLocal] = useState<string>("all");
   const [filterAulasTema, setFilterAulasTema] = useState<string>("all");
@@ -182,11 +189,197 @@ export const CourseDetails = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">{course.title}</CardTitle>
-          {course.description && (
-            <CardDescription>{course.description}</CardDescription>
-          )}
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <CardTitle className="text-2xl">{course.title}</CardTitle>
+              {course.description && (
+                <CardDescription>{course.description}</CardDescription>
+              )}
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setShowDetails(!showDetails)}
+            >
+              <Info className="h-4 w-4 mr-2" />
+              {showDetails ? "Ocultar Detalhes" : "Ver Detalhes Completos"}
+            </Button>
+          </div>
         </CardHeader>
+        {showDetails && (
+          <CardContent>
+            <Accordion type="single" collapsible defaultValue="course-info" className="w-full">
+              <AccordionItem value="course-info">
+                <AccordionTrigger>Informações do Curso</AccordionTrigger>
+                <AccordionContent>
+                  <div className="mt-4 space-y-4 pt-4 border-t">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Título */}
+                      <div>
+                        <Label className="text-sm font-semibold text-muted-foreground">Título do Curso</Label>
+                        <p className="mt-1">{course.title || "—"}</p>
+                      </div>
+
+                      {/* Descrição */}
+                      <div>
+                        <Label className="text-sm font-semibold text-muted-foreground">Descrição</Label>
+                        <p className="mt-1">{course.description || "—"}</p>
+                      </div>
+
+                      {/* Tipo de Curso */}
+                      {course.courseType && course.courseType.length > 0 && (
+                        <div>
+                          <Label className="text-sm font-semibold text-muted-foreground">Tipo de Curso</Label>
+                          <p className="mt-1">
+                            {course.courseType.join(", ")}
+                            {course.courseType.includes('OUTRO') && course.courseTypeOther && (
+                              <span className="text-muted-foreground"> ({course.courseTypeOther})</span>
+                            )}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Nome da Instituição */}
+                      {course.institutionName && (
+                        <div>
+                          <Label className="text-sm font-semibold text-muted-foreground">Nome da Instituição</Label>
+                          <p className="mt-1">{course.institutionName}</p>
+                        </div>
+                      )}
+
+                      {/* Nome do Coordenador */}
+                      {course.coordinatorName && (
+                        <div>
+                          <Label className="text-sm font-semibold text-muted-foreground">Nome do Coordenador</Label>
+                          <p className="mt-1">{course.coordinatorName}</p>
+                        </div>
+                      )}
+
+                      {/* Contato do Coordenador */}
+                      {course.coordinatorContact && (
+                        <div>
+                          <Label className="text-sm font-semibold text-muted-foreground">Contato do Coordenador</Label>
+                          <p className="mt-1">{course.coordinatorContact}</p>
+                        </div>
+                      )}
+
+                      {/* Consultor Responsável */}
+                      {course.consultantName && (
+                        <div>
+                          <Label className="text-sm font-semibold text-muted-foreground">Consultor Responsável</Label>
+                          <p className="mt-1">{course.consultantName}</p>
+                        </div>
+                      )}
+
+                      {/* Quantidade de Turmas */}
+                      {course.numberOfClasses !== undefined && (
+                        <div>
+                          <Label className="text-sm font-semibold text-muted-foreground">Quantidade de Turmas</Label>
+                          <p className="mt-1">{course.numberOfClasses}</p>
+                        </div>
+                      )}
+
+                      {/* Professor Assistente */}
+                      {course.assistantProfessor && (
+                        <div>
+                          <Label className="text-sm font-semibold text-muted-foreground">Professor Assistente</Label>
+                          <p className="mt-1">{course.assistantProfessor}</p>
+                        </div>
+                      )}
+
+                      {/* Duração */}
+                      {course.duration && (
+                        <div>
+                          <Label className="text-sm font-semibold text-muted-foreground">Duração</Label>
+                          <p className="mt-1">{course.duration}</p>
+                        </div>
+                      )}
+
+                      {/* Preço */}
+                      {course.price !== undefined && course.price > 0 && (
+                        <div>
+                          <Label className="text-sm font-semibold text-muted-foreground">Preço</Label>
+                          <p className="mt-1">
+                            R$ {course.price.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Status */}
+                      {course.status && (
+                        <div>
+                          <Label className="text-sm font-semibold text-muted-foreground">Status</Label>
+                          <p className="mt-1 capitalize">{course.status}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Observação */}
+                    {course.observation && (
+                      <div>
+                        <Label className="text-sm font-semibold text-muted-foreground">Observação</Label>
+                        <p className="mt-1 whitespace-pre-wrap">{course.observation}</p>
+                      </div>
+                    )}
+
+                    {/* Turmas */}
+                    {course.classes && course.classes.length > 0 && (
+                      <div>
+                        <Label className="text-sm font-semibold text-muted-foreground mb-2 block">Turmas</Label>
+                        <div className="space-y-3">
+                          {course.classes.map((classItem, index) => (
+                            <div key={index} className="border rounded-lg p-4 space-y-2">
+                              <h4 className="font-semibold">Turma {index + 1}</h4>
+                              <div className="grid grid-cols-2 gap-2 text-sm">
+                                <div>
+                                  <span className="text-muted-foreground">Alunos: </span>
+                                  <span>{classItem.numberOfStudents}</span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Turno: </span>
+                                  <span className="capitalize">{classItem.shift}</span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Início: </span>
+                                  <span>
+                                    {classItem.startDate?.toDate 
+                                      ? format(classItem.startDate.toDate(), "dd/MM/yyyy", { locale: ptBR })
+                                      : classItem.startDate instanceof Date
+                                      ? format(classItem.startDate, "dd/MM/yyyy", { locale: ptBR })
+                                      : "—"}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Término: </span>
+                                  <span>
+                                    {classItem.endDate?.toDate 
+                                      ? format(classItem.endDate.toDate(), "dd/MM/yyyy", { locale: ptBR })
+                                      : classItem.endDate instanceof Date
+                                      ? format(classItem.endDate, "dd/MM/yyyy", { locale: ptBR })
+                                      : "—"}
+                                  </span>
+                                </div>
+                                <div className="col-span-2">
+                                  <span className="text-muted-foreground">Uso Titaniumfix: </span>
+                                  <span>
+                                    {classItem.usesTitaniumfix}
+                                    {classItem.usesTitaniumfix === 'Outro' && classItem.usesTitaniumfixOther && (
+                                      <span className="text-muted-foreground"> ({classItem.usesTitaniumfixOther})</span>
+                                    )}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </CardContent>
+        )}
       </Card>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">

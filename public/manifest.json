@@ -2,6 +2,7 @@
   "name": "Cerrado Engenharia",
   "short_name": "Cerrado",
   "description": "15 anos de experiência, credibilidade e inovação em projetos ambientais",
+  "lang": "pt-BR",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",
