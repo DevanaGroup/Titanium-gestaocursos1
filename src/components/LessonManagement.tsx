@@ -1409,7 +1409,7 @@ export const LessonManagement = () => {
                     <div className="p-4 bg-white dark:bg-gray-900 rounded-lg border space-y-2 text-sm">
                       <p className="font-medium">Os materiais enviados pela Titaniumfix para essa atividade serão:</p>
                       <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-                        <li>1 crânio por aluno (cobrado o valor de R$ 147,00 por aluno)</li>
+                        <li>1 crânio por aluno (cobrado o valor de R$ 170,00 por aluno)</li>
                         <li>1 implante de cada modelo utilizado pelo curso (profile ou Flat)</li>
                         <li>1 kit cirúrgico para cada motor disponível no curso.</li>
                       </ul>

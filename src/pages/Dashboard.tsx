@@ -455,7 +455,7 @@ const Dashboard = () => {
           onMobileOpenChange={setMobileSidebarOpen}
         />
         <div className="flex-1 flex flex-col min-h-screen md:h-screen w-full">
-          <header className="bg-white text-gray-900 p-2 md:p-3 h-14 md:h-[80px] shadow-md z-30 border-b border-gray-200 flex-shrink-0">
+          <header className="bg-white text-gray-900 p-2 md:p-3 h-14 md:h-[80px] z-30 border-b border-gray-200 flex-shrink-0">
             <div className="flex items-center h-full">
               {/* Botão Menu Mobile */}
               <Button
