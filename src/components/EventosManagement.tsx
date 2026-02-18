@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,7 +21,7 @@ import {
 } from "@/components/ui/table";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarDays, Plus, Edit, Trash2, CalendarIcon, Search, MoreVertical, Filter } from "lucide-react";
+import { CalendarDays, Plus, Edit, Trash2, CalendarIcon, Search, MoreVertical, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -64,6 +63,10 @@ export const EventosManagement: React.FC<EventosManagementProps> = ({ userId, us
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editing, setEditing] = useState<Evento | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  
+  // Estados para paginação
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const [courses, setCourses] = useState<{ id: string; title: string }[]>([]);
   const [form, setForm] = useState({
@@ -131,6 +134,17 @@ export const EventosManagement: React.FC<EventosManagementProps> = ({ userId, us
       (e.description && e.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (e.material && e.material.toLowerCase().includes(searchTerm.toLowerCase()))
   );
+
+  // Cálculos de paginação
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedEventos = filtered.slice(startIndex, endIndex);
+
+  // Resetar página quando o termo de busca mudar
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   const handleCreate = async () => {
     if (!form.title.trim()) {
@@ -216,26 +230,25 @@ export const EventosManagement: React.FC<EventosManagementProps> = ({ userId, us
   };
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader className="min-h-[120px] flex flex-col justify-center">
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <CalendarDays className="h-5 w-5" />
-                Eventos
-              </CardTitle>
-              <CardDescription>
-                Crie e programe eventos. Defina data, material e demais informações.
-              </CardDescription>
-            </div>
-            <Dialog open={isAddOpen} onOpenChange={(o) => { setIsAddOpen(o); if (!o) resetForm(); }}>
-              <DialogTrigger asChild>
-                <Button className="bg-red-500 text-white hover:bg-red-600">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Adicionar Evento
-                </Button>
-              </DialogTrigger>
+    <div className="flex flex-col h-full min-h-0">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6 flex-shrink-0">
+        <div>
+          <h1 className="text-2xl font-semibold flex items-center gap-2">
+            <CalendarDays className="h-5 w-5" />
+            Eventos
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Crie e programe eventos. Defina data, material e demais informações.
+          </p>
+        </div>
+        <Dialog open={isAddOpen} onOpenChange={(o) => { setIsAddOpen(o); if (!o) resetForm(); }}>
+          <DialogTrigger asChild>
+            <Button className="bg-red-500 text-white hover:bg-red-600">
+              <Plus className="h-4 w-4 mr-2" />
+              Adicionar Evento
+            </Button>
+          </DialogTrigger>
               <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Novo Evento</DialogTitle>
@@ -343,33 +356,58 @@ export const EventosManagement: React.FC<EventosManagementProps> = ({ userId, us
                   <Button onClick={handleCreate}>Criar evento</Button>
                 </DialogFooter>
               </DialogContent>
-            </Dialog>
-          </div>
-        </CardHeader>
+        </Dialog>
+      </div>
 
-        <CardContent className="min-h-[480px]">
-          <div className="mb-4">
-            <div className="flex flex-col lg:flex-row gap-3 lg:justify-end">
-              {/* Campo de busca */}
-              <div className="relative flex-1 max-w-md">
-                <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
-                  <Search className="text-muted-foreground/70 w-3.5 h-3.5" />
-                </div>
-                <Input
-                  placeholder="Buscar eventos..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 h-9 text-sm"
-                />
+      {/* Filtros e busca */}
+      <div className="mb-4 flex-shrink-0">
+        <div className="flex flex-col lg:flex-row gap-3 lg:justify-between lg:items-center">
+          <div className="flex flex-col sm:flex-row gap-3 flex-1">
+            {/* Campo de busca */}
+            <div className="relative flex-1 max-w-md">
+              <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                <Search className="text-muted-foreground/70 w-3.5 h-3.5" />
               </div>
-              
-              {/* Botão de filtro */}
-              <Button variant="outline" size="icon" className="h-9 w-9">
-                <Filter className="h-4 w-4" />
-              </Button>
+              <Input
+                placeholder="Buscar eventos..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 h-9 text-sm"
+              />
             </div>
+            
+            {/* Botão de filtro */}
+            <Button variant="outline" size="icon" className="h-9 w-9">
+              <Filter className="h-4 w-4" />
+            </Button>
           </div>
 
+          {/* Seleção de limite de registros */}
+          <div className="flex items-center gap-2">
+            <Label htmlFor="items-per-page-eventos" className="text-sm whitespace-nowrap">
+              Registros por página:
+            </Label>
+            <Select value={itemsPerPage.toString()} onValueChange={(value) => {
+              setItemsPerPage(Number(value));
+              setCurrentPage(1);
+            }}>
+              <SelectTrigger id="items-per-page-eventos" className="w-20 h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabela com scroll */}
+      <div className="flex-1 overflow-hidden flex flex-col border rounded-lg min-h-0">
+        <div className="flex-1 overflow-y-auto min-h-0">
           {loading ? (
             <div className="flex justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -379,20 +417,19 @@ export const EventosManagement: React.FC<EventosManagementProps> = ({ userId, us
               {searchTerm ? "Nenhum evento encontrado." : "Nenhum evento cadastrado. Adicione o primeiro."}
             </div>
           ) : (
-            <div className="rounded-md border min-h-[400px]">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-center">Título</TableHead>
-                    <TableHead className="text-center">Data</TableHead>
-                    <TableHead className="text-center">Hora</TableHead>
-                    <TableHead className="text-center">Local</TableHead>
-                    <TableHead className="text-center">Material</TableHead>
-                    <TableHead className="text-center">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.map((e) => (
+            <Table>
+              <TableHeader className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80">
+                <TableRow>
+                  <TableHead className="text-center">Título</TableHead>
+                  <TableHead className="text-center">Data</TableHead>
+                  <TableHead className="text-center">Hora</TableHead>
+                  <TableHead className="text-center">Local</TableHead>
+                  <TableHead className="text-center">Material</TableHead>
+                  <TableHead className="text-center">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedEventos.map((e) => (
                     <TableRow key={e.id}>
                       <TableCell className="font-medium">{e.title}</TableCell>
                       <TableCell className="text-center">
@@ -429,10 +466,61 @@ export const EventosManagement: React.FC<EventosManagementProps> = ({ userId, us
                   ))}
                 </TableBody>
               </Table>
-            </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+
+        {/* Paginação */}
+        {!loading && filtered.length > 0 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/50 flex-shrink-0">
+            <div className="text-sm text-muted-foreground">
+              Mostrando {startIndex + 1} a {Math.min(endIndex, filtered.length)} de {filtered.length} eventos
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronsLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <div className="flex items-center gap-1">
+                <span className="text-sm text-muted-foreground">
+                  Página {currentPage} de {totalPages}
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronsRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Dialog Editar */}
       <Dialog open={!!editing} onOpenChange={(o) => { if (!o) resetForm(); }}>

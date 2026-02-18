@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,7 +18,7 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { Search, Edit, Trash2, Plus, BookOpen, MoreVertical, Copy, Info, Filter } from "lucide-react";
+import { Search, Edit, Trash2, Plus, BookOpen, MoreVertical, Copy, Info, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -122,6 +121,10 @@ export const LessonManagement = () => {
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [selectedLessonForDeletion, setSelectedLessonForDeletion] = useState<string | null>(null);
+  
+  // Estados para paginação
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   
   const [teachers, setTeachers] = useState<TeacherOption[]>([]);
   const [newLesson, setNewLesson] = useState<Omit<Lesson, 'id' | 'createdAt' | 'updatedAt'>>({
@@ -421,6 +424,17 @@ export const LessonManagement = () => {
     lesson.locationName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (lesson.courseTitle && lesson.courseTitle.toLowerCase().includes(searchTerm.toLowerCase()))
   );
+
+  // Cálculos de paginação
+  const totalPages = Math.ceil(filteredLessons.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedLessons = filteredLessons.slice(startIndex, endIndex);
+
+  // Resetar página quando o termo de busca mudar
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -789,76 +803,101 @@ export const LessonManagement = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="flex-1 min-w-0">
-              <CardTitle className="flex items-center gap-2">
-                <BookOpen className="h-5 w-5 shrink-0" />
-                <span className="truncate">Gerenciamento de Aulas</span>
-              </CardTitle>
-              <CardDescription className="mt-1">
-                Crie e gerencie as aulas dos cursos disponíveis no sistema
-              </CardDescription>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button type="button" variant="ghost" size="icon" className="h-10 w-10 shrink-0 text-muted-foreground hover:text-foreground">
-                    <Info className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-xs">
-                  <p>Consultores sem acesso podem solicitar aula pelo link externo:</p>
-                </TooltipContent>
-              </Tooltip>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-10 w-10 shrink-0 text-primary"
-                onClick={() => {
-                  const url = `${window.location.origin}/lessons/solicitar`;
-                  void navigator.clipboard.writeText(url);
-                  toast.success("Link copiado! Envie para os consultores.");
-                }}
-              >
-                <Copy className="h-4 w-4" />
+    <div className="flex flex-col h-full min-h-0">
+      {/* Header */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6 flex-shrink-0">
+        <div className="flex-1 min-w-0">
+          <h1 className="text-2xl font-semibold flex items-center gap-2">
+            <BookOpen className="h-5 w-5 shrink-0" />
+            <span className="truncate">Gerenciamento de Aulas</span>
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Crie e gerencie as aulas dos cursos disponíveis no sistema
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button type="button" variant="ghost" size="icon" className="h-10 w-10 shrink-0 text-muted-foreground hover:text-foreground">
+                <Info className="h-4 w-4" />
               </Button>
-              <Button
-                onClick={() => setIsAddDialogOpen(true)}
-                className="bg-red-500 hover:bg-red-600 whitespace-nowrap"
-              >
-                <Plus className="h-4 w-4 md:mr-2" />
-                <span className="hidden md:inline">Nova Aula</span>
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="h-[600px] overflow-y-auto">
-          <div className="mb-4">
-            <div className="flex flex-col lg:flex-row gap-3 lg:justify-end">
-              {/* Campo de busca */}
-              <div className="relative flex-1 max-w-md">
-                <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
-                  <Search className="text-muted-foreground/70 w-3.5 h-3.5" />
-                </div>
-                <Input
-                  placeholder="Buscar aulas..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 h-9 text-sm"
-                />
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-xs">
+              <p>Consultores sem acesso podem solicitar aula pelo link externo:</p>
+            </TooltipContent>
+          </Tooltip>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-10 w-10 shrink-0 text-primary"
+            onClick={() => {
+              const url = `${window.location.origin}/lessons/solicitar`;
+              void navigator.clipboard.writeText(url);
+              toast.success("Link copiado! Envie para os consultores.");
+            }}
+          >
+            <Copy className="h-4 w-4" />
+          </Button>
+          <Button
+            onClick={() => setIsAddDialogOpen(true)}
+            className="bg-red-500 hover:bg-red-600 whitespace-nowrap"
+          >
+            <Plus className="h-4 w-4 md:mr-2" />
+            <span className="hidden md:inline">Nova Aula</span>
+          </Button>
+        </div>
+      </div>
+
+      {/* Filtros e busca */}
+      <div className="mb-4 flex-shrink-0">
+        <div className="flex flex-col lg:flex-row gap-3 lg:justify-between lg:items-center">
+          <div className="flex flex-col sm:flex-row gap-3 flex-1">
+            {/* Campo de busca */}
+            <div className="relative flex-1 max-w-md">
+              <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                <Search className="text-muted-foreground/70 w-3.5 h-3.5" />
               </div>
-              
-              {/* Botão de filtro */}
-              <Button variant="outline" size="icon" className="h-9 w-9">
-                <Filter className="h-4 w-4" />
-              </Button>
+              <Input
+                placeholder="Buscar aulas..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 h-9 text-sm"
+              />
             </div>
+            
+            {/* Botão de filtro */}
+            <Button variant="outline" size="icon" className="h-9 w-9">
+              <Filter className="h-4 w-4" />
+            </Button>
           </div>
 
+          {/* Seleção de limite de registros */}
+          <div className="flex items-center gap-2">
+            <Label htmlFor="items-per-page-lessons" className="text-sm whitespace-nowrap">
+              Registros por página:
+            </Label>
+            <Select value={itemsPerPage.toString()} onValueChange={(value) => {
+              setItemsPerPage(Number(value));
+              setCurrentPage(1);
+            }}>
+              <SelectTrigger id="items-per-page-lessons" className="w-20 h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabela com scroll */}
+      <div className="flex-1 overflow-hidden flex flex-col border rounded-lg min-h-0">
+        <div className="flex-1 overflow-y-auto min-h-0">
           {isLoading ? (
             <div className="text-center py-8">
               <p className="text-gray-500">Carregando aulas...</p>
@@ -872,7 +911,7 @@ export const LessonManagement = () => {
             </div>
           ) : (
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80">
                 <TableRow>
                   <TableHead className="text-center">Protocolo</TableHead>
                   <TableHead className="text-center">Origem</TableHead>
@@ -887,7 +926,7 @@ export const LessonManagement = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredLessons.map((lesson) => (
+                {paginatedLessons.map((lesson) => (
                   <TableRow
                     key={lesson.id}
                     className="cursor-pointer hover:bg-muted/50"
@@ -947,8 +986,60 @@ export const LessonManagement = () => {
               </TableBody>
             </Table>
           )}
-        </CardContent>
-      </Card>
+        </div>
+
+        {/* Paginação */}
+        {!isLoading && filteredLessons.length > 0 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/50 flex-shrink-0">
+            <div className="text-sm text-muted-foreground">
+              Mostrando {startIndex + 1} a {Math.min(endIndex, filteredLessons.length)} de {filteredLessons.length} aulas
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronsLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <div className="flex items-center gap-1">
+                <span className="text-sm text-muted-foreground">
+                  Página {currentPage} de {totalPages}
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronsRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Dialog de Criar Aula */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>

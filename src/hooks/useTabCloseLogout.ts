@@ -112,8 +112,8 @@ export const useTabCloseLogout = () => {
         const hiddenTime = parseInt(tabHidden);
         const currentTime = Date.now();
         
-        // Se ficou oculta por mais de 5 minutos, força o logout
-        if (currentTime - hiddenTime > 5 * 60 * 1000) {
+        // Se ficou oculta por mais de 60 minutos, força o logout
+        if (currentTime - hiddenTime > 60 * 60 * 1000) {
           try {
             auth.signOut();
             window.location.href = '/login';

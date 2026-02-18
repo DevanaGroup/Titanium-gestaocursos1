@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,7 +41,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 
 interface Course {
   id: string;
@@ -100,6 +99,10 @@ export const CourseManagement = () => {
   const [currentStep, setCurrentStep] = useState<1 | 2>(1);
   const [classes, setClasses] = useState<Class[]>([]);
   const [currentClassIndex, setCurrentClassIndex] = useState(0);
+  
+  // Estados para paginação
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   
   const [newCourse, setNewCourse] = useState<Omit<Course, 'id' | 'createdAt' | 'updatedAt'>>({
     title: "",
@@ -202,6 +205,17 @@ export const CourseManagement = () => {
     course.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
     course.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Cálculos de paginação
+  const totalPages = Math.ceil(filteredCourses.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedCourses = filteredCourses.slice(startIndex, endIndex);
+
+  // Resetar página quando o termo de busca mudar
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   const formatCurrency = (value: string): string => {
     // Remove tudo que não é dígito
@@ -530,51 +544,76 @@ export const CourseManagement = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <GraduationCap className="h-5 w-5" />
-                Gerenciamento de Cursos
-              </CardTitle>
-              <CardDescription>
-                Crie e gerencie os cursos disponíveis no sistema
-              </CardDescription>
+    <div className="flex flex-col h-full min-h-0">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6 flex-shrink-0">
+        <div>
+          <h1 className="text-2xl font-semibold flex items-center gap-2">
+            <GraduationCap className="h-5 w-5" />
+            Gerenciamento de Cursos
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Crie e gerencie os cursos disponíveis no sistema
+          </p>
+        </div>
+        <Button 
+          onClick={() => setIsAddDialogOpen(true)}
+          className="bg-red-500 hover:bg-red-600"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Novo Curso
+        </Button>
+      </div>
+
+      {/* Filtros e busca */}
+      <div className="mb-4 flex-shrink-0">
+        <div className="flex flex-col lg:flex-row gap-3 lg:justify-between lg:items-center">
+          <div className="flex flex-col sm:flex-row gap-3 flex-1">
+            {/* Campo de busca */}
+            <div className="relative flex-1 max-w-md">
+              <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                <Search className="text-muted-foreground/70 w-3.5 h-3.5" />
+              </div>
+              <Input
+                placeholder="Buscar cursos..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 h-9 text-sm"
+              />
             </div>
-            <Button 
-              onClick={() => setIsAddDialogOpen(true)}
-              className="bg-red-500 hover:bg-red-600"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Curso
+            
+            {/* Botão de filtro */}
+            <Button variant="outline" size="icon" className="h-9 w-9">
+              <Filter className="h-4 w-4" />
             </Button>
           </div>
-        </CardHeader>
-        <CardContent className="h-[600px] overflow-y-auto">
-          <div className="mb-4">
-            <div className="flex flex-col lg:flex-row gap-3 lg:justify-end">
-              {/* Campo de busca */}
-              <div className="relative flex-1 max-w-md">
-                <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
-                  <Search className="text-muted-foreground/70 w-3.5 h-3.5" />
-                </div>
-                <Input
-                  placeholder="Buscar cursos..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 h-9 text-sm"
-                />
-              </div>
-              
-              {/* Botão de filtro */}
-              <Button variant="outline" size="icon" className="h-9 w-9">
-                <Filter className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
 
+          {/* Seleção de limite de registros */}
+          <div className="flex items-center gap-2">
+            <Label htmlFor="items-per-page" className="text-sm whitespace-nowrap">
+              Registros por página:
+            </Label>
+            <Select value={itemsPerPage.toString()} onValueChange={(value) => {
+              setItemsPerPage(Number(value));
+              setCurrentPage(1);
+            }}>
+              <SelectTrigger id="items-per-page" className="w-20 h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabela com scroll */}
+      <div className="flex-1 overflow-hidden flex flex-col border rounded-lg min-h-0">
+        <div className="flex-1 overflow-y-auto min-h-0">
           {isLoading ? (
             <div className="text-center py-8">
               <p className="text-gray-500">Carregando cursos...</p>
@@ -588,7 +627,7 @@ export const CourseManagement = () => {
             </div>
           ) : (
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80">
                 <TableRow>
                   <TableHead className="text-center">Título</TableHead>
                   <TableHead className="text-center">Descrição</TableHead>
@@ -599,7 +638,7 @@ export const CourseManagement = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredCourses.map((course) => (
+                {paginatedCourses.map((course) => (
                   <TableRow
                     key={course.id}
                     className="cursor-pointer hover:bg-muted/50"
@@ -652,8 +691,60 @@ export const CourseManagement = () => {
               </TableBody>
             </Table>
           )}
-        </CardContent>
-      </Card>
+        </div>
+
+        {/* Paginação */}
+        {!isLoading && filteredCourses.length > 0 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/50 flex-shrink-0">
+            <div className="text-sm text-muted-foreground">
+              Mostrando {startIndex + 1} a {Math.min(endIndex, filteredCourses.length)} de {filteredCourses.length} cursos
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronsLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <div className="flex items-center gap-1">
+                <span className="text-sm text-muted-foreground">
+                  Página {currentPage} de {totalPages}
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronsRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Dialog de Criar Curso */}
       <Dialog open={isAddDialogOpen} onOpenChange={(open) => {

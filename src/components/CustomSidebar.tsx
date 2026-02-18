@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useSidebar } from '@/contexts/SidebarContext';
 import Logo from '@/components/Logo';
@@ -7,12 +7,15 @@ import {
   KanbanSquare, FileText, Receipt,
   GraduationCap,
   FolderOpen, ChevronDown, X, Archive, BookOpen, UserCircle,
-  DollarSign, TrendingUp, TrendingDown, BarChart3, Database
+  DollarSign, TrendingUp, TrendingDown, BarChart3, Database,
+  Bell, LogOut, ChevronRight
 } from 'lucide-react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { auth, db } from '@/config/firebase';
 import { doc, getDoc } from 'firebase/firestore';
+import { toast } from 'sonner';
 import { hasPermission, hasFinancialAccess, getLevelNumber, normalizeHierarchyLevel } from "@/utils/hierarchyUtils";
 import { HierarchyLevel } from "@/types";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -44,11 +47,18 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
   const [userRole, setUserRole] = useState<HierarchyLevel>('Nível 5');
   const [userRoleRaw, setUserRoleRaw] = useState<string>('Nível 5'); // Valor original do banco
   const [isLoading, setIsLoading] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false); // Flag para garantir que só mostra loading na primeira vez
+  const hasLoadedOnceRef = useRef(false); // Ref para rastrear se já carregou (evita problemas de closure)
   const [tasksExpanded, setTasksExpanded] = useState(false);
   const [coursesExpanded, setCoursesExpanded] = useState(false);
   const [financialExpanded, setFinancialExpanded] = useState(false);
   const [internalMobileOpen, setInternalMobileOpen] = useState(false);
   const [clientId, setClientId] = useState<string | null>(null); // Para Cliente Externo e Cliente
+  const [userData, setUserData] = useState<{ name: string; avatar: string; role: string }>({
+    name: 'Usuário',
+    avatar: '/placeholder.svg',
+    role: 'Nível 5'
+  });
   
   const isMobileOpen = mobileOpen !== undefined ? mobileOpen : internalMobileOpen;
   const setIsMobileOpen = onMobileOpenChange || setInternalMobileOpen;
@@ -83,6 +93,7 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
   }, [mobileOpen]);
 
   // Auto-expandir menu pai quando um sub-item estiver ativo
+  // Otimizado para evitar atualizações desnecessárias de estado
   useEffect(() => {
     // Verificar se algum sub-item de Tarefas está ativo
     const isTasksSubItemActive = 
@@ -91,11 +102,9 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
       location.pathname === '/tasks' || 
       location.pathname.startsWith('/tasks/');
     
-    if (isTasksSubItemActive) {
+    // Só expandir automaticamente se um sub-item estiver ativo
+    if (isTasksSubItemActive && !tasksExpanded) {
       setTasksExpanded(true);
-    } else if (!isMobile) {
-      // No desktop, colapsar se não estiver ativo
-      setTasksExpanded(false);
     }
     
     // Verificar se algum sub-item de Cursos está ativo
@@ -107,10 +116,9 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
       location.pathname === '/lessons' || 
       location.pathname === '/teachers';
     
-    if (isCoursesSubItemActive) {
+    // Só expandir automaticamente se um sub-item estiver ativo
+    if (isCoursesSubItemActive && !coursesExpanded) {
       setCoursesExpanded(true);
-    } else if (!isMobile) {
-      setCoursesExpanded(false);
     }
     
     // Verificar se algum sub-item de Financeiros está ativo
@@ -123,12 +131,11 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
       activeTab === 'financial-reports' ||
       location.pathname.startsWith('/financial');
     
-    if (isFinancialSubItemActive) {
+    // Só expandir automaticamente se um sub-item estiver ativo
+    if (isFinancialSubItemActive && !financialExpanded) {
       setFinancialExpanded(true);
-    } else if (!isMobile) {
-      setFinancialExpanded(false);
     }
-  }, [activeTab, isMobile, location.pathname]);
+  }, [activeTab, location.pathname]); // Removido tasksExpanded, coursesExpanded, financialExpanded para evitar loops
 
   // Menu padrão para usuários não-comerciais (Nível 2-5)
   // Ordem: Início, Agenda, Eventos, Tarefas, Financeiros, Colaboradores (se permitido), Suporte
@@ -343,14 +350,15 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
     const fetchUserRole = async () => {
       if (!isMounted) return;
       
-      setIsLoading(true);
       try {
         const currentUser = auth.currentUser;
         if (!currentUser) {
-          if (isMounted) {
+          if (isMounted && !hasLoadedOnceRef.current) {
             setUserRole('Nível 5');
             setUserRoleRaw('Nível 5');
             setIsLoading(false);
+            setHasLoadedOnce(true);
+            hasLoadedOnceRef.current = true;
           }
           return;
         }
@@ -360,11 +368,20 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
         if (!isMounted) return;
         
         if (userDocRef.exists()) {
-          const userData = userDocRef.data();
-          const roleRaw = userData.hierarchyLevel || 'Nível 5';
+          const userDataDoc = userDocRef.data();
+          const roleRaw = userDataDoc.hierarchyLevel || 'Nível 5';
           const role = normalizeHierarchyLevel(roleRaw);
           setUserRole(role);
           setUserRoleRaw(roleRaw); // Manter valor original para comparações específicas
+          
+          // Atualizar dados do usuário para exibição no sidebar
+          if (isMounted) {
+            setUserData({
+              name: userDataDoc.firstName || userDataDoc.displayName || 'Usuário',
+              avatar: userDataDoc.photoURL || userDataDoc.avatar || '/placeholder.svg',
+              role: roleRaw
+            });
+          }
           
           // Se for Cliente Externo ou Cliente, buscar o ID do cliente vinculado
           if (roleRaw === 'Cliente Externo' || roleRaw === 'Cliente') {
@@ -382,6 +399,11 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
           if (isMounted) {
             setUserRole('Nível 5');
             setUserRoleRaw('Nível 5');
+            setUserData({
+              name: 'Usuário',
+              avatar: '/placeholder.svg',
+              role: 'Nível 5'
+            });
           }
         }
       } catch (error) {
@@ -393,6 +415,8 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
       } finally {
         if (isMounted) {
           setIsLoading(false);
+          setHasLoadedOnce(true);
+          hasLoadedOnceRef.current = true; // Marcar que já carregou pelo menos uma vez
         }
       }
     };
@@ -400,11 +424,17 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
     // Verificar se o auth está pronto antes de buscar o perfil
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user && isMounted) {
-        fetchUserRole();
-      } else if (isMounted) {
+        // Só buscar se ainda não carregou ou se o usuário mudou
+        if (!hasLoadedOnceRef.current) {
+          fetchUserRole();
+        }
+      } else if (isMounted && !hasLoadedOnceRef.current) {
+        // Só definir valores padrão se ainda não carregou
         setUserRole('Nível 5');
         setUserRoleRaw('Nível 5');
         setIsLoading(false);
+        setHasLoadedOnce(true);
+        hasLoadedOnceRef.current = true;
       }
     });
 
@@ -433,51 +463,74 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
     });
   }, [menuItems, userRole]);
 
+  // Memoizar o pathname atual para evitar re-renderizações desnecessárias
+  const currentPathname = location.pathname;
+
   // Função helper para determinar se um item está ativo baseado na rota atual
+  // Usa currentPathname para evitar re-criações desnecessárias
   const isItemActive = useCallback((itemId: string): boolean => {
     const route = routeMap[itemId];
     if (!route) return false;
     
     // Verificação direta da rota atual
-    if (location.pathname === route) {
+    if (currentPathname === route) {
       return true;
     }
     
     // Casos especiais
-    if (itemId === 'home' && location.pathname === '/dashboard') {
+    if (itemId === 'home' && currentPathname === '/dashboard') {
       return true;
     }
     // Tarefas: ativo se estiver em qualquer rota de tarefas
-    if (itemId === 'tasks' && (location.pathname === '/tasks' || location.pathname.startsWith('/tasks/'))) {
+    if (itemId === 'tasks' && (currentPathname === '/tasks' || currentPathname.startsWith('/tasks/'))) {
       return true;
     }
     // Cursos: ativo se estiver em qualquer rota relacionada (cursos, aulas, professores)
     if (itemId === 'courses' && (
-      location.pathname === '/courses' || 
-      location.pathname === '/lessons' || 
-      location.pathname === '/teachers' ||
-      location.pathname.startsWith('/courses/') ||
-      location.pathname.startsWith('/lessons/') ||
-      location.pathname.startsWith('/teachers/')
+      currentPathname === '/courses' || 
+      currentPathname === '/lessons' || 
+      currentPathname === '/teachers' ||
+      currentPathname.startsWith('/courses/') ||
+      currentPathname.startsWith('/lessons/') ||
+      currentPathname.startsWith('/teachers/')
     )) {
       return true;
     }
     // Financeiros: ativo se estiver em qualquer rota financeira
-    if (itemId === 'financial' && location.pathname.startsWith('/financial')) {
+    if (itemId === 'financial' && currentPathname.startsWith('/financial')) {
       return true;
     }
-    if (itemId === 'teachers' && location.pathname === '/teachers') {
+    if (itemId === 'teachers' && currentPathname === '/teachers') {
       return true;
     }
     
     return false;
-  }, [location.pathname]);
+  }, [currentPathname, routeMap]);
+  
+  // Função para gerar iniciais do avatar
+  const getAvatarInitials = useCallback((name: string): string => {
+    if (!name || name === "Usuário") return "U";
+    const nameParts = name.split(" ");
+    if (nameParts.length === 1) return nameParts[0].charAt(0).toUpperCase();
+    return `${nameParts[0].charAt(0)}${nameParts[nameParts.length - 1].charAt(0)}`.toUpperCase();
+  }, []);
+
+  // Função para logout
+  const handleLogout = useCallback(() => {
+    (window as any).intentionalLogout = true;
+    auth.signOut().then(() => {
+      toast.info("Você foi desconectado");
+      navigate("/");
+    }).catch((error) => {
+      toast.error("Erro ao fazer logout: " + error.message);
+    });
+  }, [navigate]);
 
   // Conteúdo da Sidebar
-  const SidebarContent = () => (
+  const SidebarContent = useCallback(() => (
     <>
       {/* Logo area */}
-        <div className="flex items-center justify-between p-2 md:p-3 h-14 md:h-[80px] border-b border-border bg-white relative overflow-hidden" style={{ backgroundRepeat: 'no-repeat' }}>
+      <div className="flex items-center justify-between px-4 py-4 border-b border-gray-100 bg-white">
         <Logo variant="default" />
         {isMobile && (
           <Button
@@ -491,10 +544,42 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
         )}
       </div>
 
+      {/* Separador */}
+      <div className="border-b border-gray-100" />
+
+      {/* Perfil do usuário */}
+      {(!isCollapsed || isMobile) && (
+        <div className="px-4 py-4 border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            <Avatar className="h-10 w-10">
+              <AvatarImage src={userData.avatar} alt={userData.name} />
+              <AvatarFallback className="bg-gray-200 text-gray-700 text-sm font-medium">
+                {getAvatarInitials(userData.name)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col">
+              <span className="text-sm font-medium text-gray-800">{userData.name}</span>
+              <span className="text-xs text-gray-600">{userData.role}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Separador */}
+      <div className="border-b border-gray-100" />
+
       {/* Menu items */}
-      <nav className="flex-1 overflow-y-auto py-2 h-full">
-        <div className="space-y-3 px-2">
-          {availableMenuItems.map((item) => {
+      <nav className="flex-1 overflow-y-auto py-2">
+        {isLoading && !hasLoadedOnce ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-500 mx-auto mb-2"></div>
+              <p className="text-xs text-gray-600">Carregando...</p>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-1 px-2">
+            {availableMenuItems.map((item) => {
             return (
             <div key={item.id}>
               {item.id === 'tasks' && (!isCollapsed || isMobile) ? (
@@ -503,30 +588,30 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
                     variant="ghost"
                     type="button"
                     className={`
-                      w-full flex items-center justify-between px-2 
-                      py-1.5 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
-                      ${tasksExpanded || isItemActive('tasks') || location.pathname === '/tasks' || location.pathname.startsWith('/tasks/')
-                        ? 'bg-red-500 text-white shadow-sm hover:bg-red-500 hover:text-white' 
-                        : 'text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200'
+                      w-full flex items-center justify-between px-3 
+                      py-2 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
+                      ${tasksExpanded || isItemActive('tasks') || currentPathname === '/tasks' || currentPathname.startsWith('/tasks/')
+                        ? 'bg-[#C0392B] text-white shadow-sm hover:bg-[#A93226] hover:text-white' 
+                        : 'text-gray-800 hover:text-gray-900 hover:bg-gray-50 transition-colors duration-200'
                       }
                     `}
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
                       // Sempre permitir expansão/colapso, tanto no mobile quanto no desktop
-                      setTasksExpanded(!tasksExpanded);
+                      setTasksExpanded(prev => !prev);
                     }}
                   >
                     <div className="flex items-center">
-                      <div className="flex-shrink-0 mr-2">
+                      <div className={`flex-shrink-0 mr-2 ${tasksExpanded || isItemActive('tasks') || currentPathname === '/tasks' || currentPathname.startsWith('/tasks/') ? 'text-white' : 'text-gray-900'}`}>
                         {item.icon}
                       </div>
                       <span className="text-sm font-medium truncate">
                         {item.label}
                       </span>
                     </div>
-                    <ChevronDown 
-                      className={`h-4 w-4 transition-transform ${tasksExpanded ? 'rotate-180' : ''}`}
+                    <ChevronRight 
+                      className={`h-4 w-4 transition-transform ${tasksExpanded || isItemActive('tasks') || currentPathname === '/tasks' || currentPathname.startsWith('/tasks/') ? 'text-white' : 'text-gray-900'} ${tasksExpanded ? 'rotate-90' : ''}`}
                     />
                   </Button>
                   {tasksExpanded && (
@@ -535,11 +620,11 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
                         variant="ghost"
                         type="button"
                         className={`
-                          w-full flex items-center justify-start px-2 
-                          py-1.5 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
-                          ${location.pathname === '/tasks' && !location.pathname.startsWith('/tasks/archived')
-                            ? 'bg-red-500 text-white shadow-sm hover:bg-red-500 hover:text-white' 
-                            : 'text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200'
+                          w-full flex items-center justify-start px-3 
+                          py-2 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
+                          ${currentPathname === '/tasks' && !currentPathname.startsWith('/tasks/archived')
+                            ? 'bg-[#C0392B] text-white shadow-sm hover:bg-[#A93226] hover:text-white' 
+                            : 'text-gray-800 hover:text-gray-900 hover:bg-gray-50 transition-colors duration-200'
                           }
                         `}
                         onClick={(e) => {
@@ -552,7 +637,7 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
                           }
                         }}
                       >
-                        <KanbanSquare className="h-3 w-3 mr-2" />
+                        <KanbanSquare className={`h-3 w-3 mr-2 ${currentPathname === '/tasks' && !currentPathname.startsWith('/tasks/archived') ? 'text-white' : 'text-gray-900'}`} />
                         <span className="text-sm">Tarefas</span>
                       </Button>
                       {/* Cliente Externo e Cliente não podem ver tarefas arquivadas */}
@@ -561,11 +646,11 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
                           variant="ghost"
                           type="button"
                           className={`
-                            w-full flex items-center justify-start px-2 
-                            py-1.5 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
-                            ${location.pathname === '/tasks/archived'
-                              ? 'bg-red-500 text-white shadow-sm hover:bg-red-500 hover:text-white' 
-                              : 'text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200'
+                            w-full flex items-center justify-start px-3 
+                            py-2 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
+                            ${currentPathname === '/tasks/archived'
+                              ? 'bg-[#C0392B] text-white shadow-sm hover:bg-[#A93226] hover:text-white' 
+                              : 'text-gray-800 hover:text-gray-900 hover:bg-gray-50 transition-colors duration-200'
                             }
                           `}
                           onClick={(e) => {
@@ -578,7 +663,7 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
                             }
                           }}
                         >
-                          <Archive className="h-3 w-3 mr-2" />
+                          <Archive className={`h-3 w-3 mr-2 ${currentPathname === '/tasks/archived' ? 'text-white' : 'text-gray-900'}`} />
                           <span className="text-sm">Arquivados</span>
                         </Button>
                       )}
@@ -593,28 +678,28 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
                     className={`
                       w-full flex items-center justify-between px-2 
                       py-1.5 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
-                      ${coursesExpanded || isItemActive('courses') || location.pathname === '/lessons' || location.pathname === '/teachers'
-                        ? 'bg-red-500 text-white shadow-sm hover:bg-red-500 hover:text-white' 
-                        : 'text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200'
+                      ${coursesExpanded || isItemActive('courses') || currentPathname === '/lessons' || currentPathname === '/teachers'
+                        ? 'bg-[#C0392B] text-white shadow-sm hover:bg-[#A93226] hover:text-white' 
+                        : 'text-gray-800 hover:text-gray-900 hover:bg-gray-50 transition-colors duration-200'
                       }
                     `}
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
                       // Sempre permitir expansão/colapso, tanto no mobile quanto no desktop
-                      setCoursesExpanded(!coursesExpanded);
+                      setCoursesExpanded(prev => !prev);
                     }}
                   >
                     <div className="flex items-center">
-                      <div className="flex-shrink-0 mr-2">
+                      <div className={`flex-shrink-0 mr-2 ${coursesExpanded || isItemActive('courses') || currentPathname === '/lessons' || currentPathname === '/teachers' ? 'text-white' : 'text-gray-900'}`}>
                         {item.icon}
                       </div>
                       <span className="text-sm font-medium truncate">
                         {item.label}
                       </span>
                     </div>
-                    <ChevronDown 
-                      className={`h-4 w-4 transition-transform ${coursesExpanded ? 'rotate-180' : ''}`}
+                    <ChevronRight 
+                      className={`h-4 w-4 transition-transform ${coursesExpanded || isItemActive('courses') || currentPathname === '/lessons' || currentPathname === '/teachers' ? 'text-white' : 'text-gray-900'} ${coursesExpanded ? 'rotate-90' : ''}`}
                     />
                   </Button>
                   {coursesExpanded && (
@@ -623,11 +708,11 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
                         variant="ghost"
                         type="button"
                         className={`
-                          w-full flex items-center justify-start px-2 
-                          py-1.5 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
-                          ${location.pathname === '/courses'
-                            ? 'bg-red-500 text-white shadow-sm hover:bg-red-500 hover:text-white' 
-                            : 'text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200'
+                          w-full flex items-center justify-start px-3 
+                          py-2 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
+                          ${currentPathname === '/courses'
+                            ? 'bg-[#C0392B] text-white shadow-sm hover:bg-[#A93226] hover:text-white' 
+                            : 'text-gray-800 hover:text-gray-900 hover:bg-gray-50 transition-colors duration-200'
                           }
                         `}
                         onClick={(e) => {
@@ -640,18 +725,18 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
                           }
                         }}
                       >
-                        <GraduationCap className="h-3 w-3 mr-2" />
+                        <GraduationCap className={`h-3 w-3 mr-2 ${currentPathname === '/courses' ? 'text-white' : 'text-gray-900'}`} />
                         <span className="text-sm">Cursos</span>
                       </Button>
                       <Button
                         variant="ghost"
                         type="button"
                         className={`
-                          w-full flex items-center justify-start px-2 
-                          py-1.5 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
-                          ${location.pathname === '/lessons'
-                            ? 'bg-red-500 text-white shadow-sm hover:bg-red-500 hover:text-white' 
-                            : 'text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200'
+                          w-full flex items-center justify-start px-3 
+                          py-2 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
+                          ${currentPathname === '/lessons'
+                            ? 'bg-[#C0392B] text-white shadow-sm hover:bg-[#A93226] hover:text-white' 
+                            : 'text-gray-800 hover:text-gray-900 hover:bg-gray-50 transition-colors duration-200'
                           }
                         `}
                         onClick={(e) => {
@@ -664,18 +749,18 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
                           }
                         }}
                       >
-                        <BookOpen className="h-3 w-3 mr-2" />
+                        <BookOpen className={`h-3 w-3 mr-2 ${currentPathname === '/lessons' ? 'text-white' : 'text-gray-900'}`} />
                         <span className="text-sm">Aulas</span>
                       </Button>
                       <Button
                         variant="ghost"
                         type="button"
                         className={`
-                          w-full flex items-center justify-start px-2 
-                          py-1.5 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
-                          ${location.pathname === '/teachers'
-                            ? 'bg-red-500 text-white shadow-sm hover:bg-red-500 hover:text-white' 
-                            : 'text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200'
+                          w-full flex items-center justify-start px-3 
+                          py-2 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
+                          ${currentPathname === '/teachers'
+                            ? 'bg-[#C0392B] text-white shadow-sm hover:bg-[#A93226] hover:text-white' 
+                            : 'text-gray-800 hover:text-gray-900 hover:bg-gray-50 transition-colors duration-200'
                           }
                         `}
                         onClick={(e) => {
@@ -688,7 +773,7 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
                           }
                         }}
                       >
-                        <UserCircle className="h-3 w-3 mr-2" />
+                        <UserCircle className={`h-3 w-3 mr-2 ${currentPathname === '/teachers' ? 'text-white' : 'text-gray-900'}`} />
                         <span className="text-sm">Professores</span>
                       </Button>
                     </div>
@@ -702,28 +787,28 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
                     className={`
                       w-full flex items-center justify-between px-2 
                       py-1.5 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
-                      ${financialExpanded || isItemActive('financial') || location.pathname.startsWith('/financial')
-                        ? 'bg-red-500 text-white shadow-sm hover:bg-red-500 hover:text-white' 
-                        : 'text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200'
+                      ${financialExpanded || isItemActive('financial') || currentPathname.startsWith('/financial')
+                        ? 'bg-[#C0392B] text-white shadow-sm hover:bg-[#A93226] hover:text-white' 
+                        : 'text-gray-800 hover:text-gray-900 hover:bg-gray-50 transition-colors duration-200'
                       }
                     `}
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
                       // Sempre permitir expansão/colapso, tanto no mobile quanto no desktop
-                      setFinancialExpanded(!financialExpanded);
+                      setFinancialExpanded(prev => !prev);
                     }}
                   >
                     <div className="flex items-center">
-                      <div className="flex-shrink-0 mr-2">
+                      <div className={`flex-shrink-0 mr-2 ${financialExpanded || isItemActive('financial') || currentPathname.startsWith('/financial') ? 'text-white' : 'text-gray-900'}`}>
                         {item.icon}
                       </div>
                       <span className="text-sm font-medium truncate">
                         {item.label}
                       </span>
                     </div>
-                    <ChevronDown 
-                      className={`h-4 w-4 transition-transform ${financialExpanded ? 'rotate-180' : ''}`}
+                    <ChevronRight 
+                      className={`h-4 w-4 transition-transform ${financialExpanded || isItemActive('financial') || currentPathname.startsWith('/financial') ? 'text-white' : 'text-gray-900'} ${financialExpanded ? 'rotate-90' : ''}`}
                     />
                   </Button>
                   {financialExpanded && (
@@ -732,11 +817,11 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
                         variant="ghost"
                         type="button"
                         className={`
-                          w-full flex items-center justify-start px-2 
-                          py-1.5 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
-                          ${location.pathname === '/financial/expense-requests'
-                            ? 'bg-red-500 text-white shadow-sm hover:bg-red-500 hover:text-white' 
-                            : 'text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200'
+                          w-full flex items-center justify-start px-3 
+                          py-2 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
+                          ${currentPathname === '/financial/expense-requests'
+                            ? 'bg-[#C0392B] text-white shadow-sm hover:bg-[#A93226] hover:text-white' 
+                            : 'text-gray-800 hover:text-gray-900 hover:bg-gray-50 transition-colors duration-200'
                           }
                         `}
                         onClick={(e) => {
@@ -749,18 +834,18 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
                           }
                         }}
                       >
-                        <Receipt className="h-3 w-3 mr-2" />
+                        <Receipt className={`h-3 w-3 mr-2 ${currentPathname === '/financial/expense-requests' ? 'text-white' : 'text-gray-900'}`} />
                         <span className="text-sm">Solicitações</span>
                       </Button>
                       <Button
                         variant="ghost"
                         type="button"
                         className={`
-                          w-full flex items-center justify-start px-2 
-                          py-1.5 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
-                          ${location.pathname === '/financial/incomes'
-                            ? 'bg-red-500 text-white shadow-sm hover:bg-red-500 hover:text-white' 
-                            : 'text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200'
+                          w-full flex items-center justify-start px-3 
+                          py-2 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
+                          ${currentPathname === '/financial/incomes'
+                            ? 'bg-[#C0392B] text-white shadow-sm hover:bg-[#A93226] hover:text-white' 
+                            : 'text-gray-800 hover:text-gray-900 hover:bg-gray-50 transition-colors duration-200'
                           }
                         `}
                         onClick={(e) => {
@@ -773,18 +858,18 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
                           }
                         }}
                       >
-                        <TrendingUp className="h-3 w-3 mr-2" />
+                        <TrendingUp className={`h-3 w-3 mr-2 ${currentPathname === '/financial/incomes' ? 'text-white' : 'text-gray-900'}`} />
                         <span className="text-sm">Entradas</span>
                       </Button>
                       <Button
                         variant="ghost"
                         type="button"
                         className={`
-                          w-full flex items-center justify-start px-2 
-                          py-1.5 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
-                          ${location.pathname === '/financial/expenses'
-                            ? 'bg-red-500 text-white shadow-sm hover:bg-red-500 hover:text-white' 
-                            : 'text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200'
+                          w-full flex items-center justify-start px-3 
+                          py-2 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
+                          ${currentPathname === '/financial/expenses'
+                            ? 'bg-[#C0392B] text-white shadow-sm hover:bg-[#A93226] hover:text-white' 
+                            : 'text-gray-800 hover:text-gray-900 hover:bg-gray-50 transition-colors duration-200'
                           }
                         `}
                         onClick={(e) => {
@@ -797,18 +882,18 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
                           }
                         }}
                       >
-                        <TrendingDown className="h-3 w-3 mr-2" />
+                        <TrendingDown className={`h-3 w-3 mr-2 ${currentPathname === '/financial/expenses' ? 'text-white' : 'text-gray-900'}`} />
                         <span className="text-sm">Saídas</span>
                       </Button>
                       <Button
                         variant="ghost"
                         type="button"
                         className={`
-                          w-full flex items-center justify-start px-2 
-                          py-1.5 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
-                          ${location.pathname === '/financial/teacher-payments'
-                            ? 'bg-red-500 text-white shadow-sm hover:bg-red-500 hover:text-white' 
-                            : 'text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200'
+                          w-full flex items-center justify-start px-3 
+                          py-2 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
+                          ${currentPathname === '/financial/teacher-payments'
+                            ? 'bg-[#C0392B] text-white shadow-sm hover:bg-[#A93226] hover:text-white' 
+                            : 'text-gray-800 hover:text-gray-900 hover:bg-gray-50 transition-colors duration-200'
                           }
                         `}
                         onClick={(e) => {
@@ -821,18 +906,18 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
                           }
                         }}
                       >
-                        <GraduationCap className="h-3 w-3 mr-2" />
+                        <GraduationCap className={`h-3 w-3 mr-2 ${currentPathname === '/financial/teacher-payments' ? 'text-white' : 'text-gray-900'}`} />
                         <span className="text-sm">Pagamentos Professores</span>
                       </Button>
                       <Button
                         variant="ghost"
                         type="button"
                         className={`
-                          w-full flex items-center justify-start px-2 
-                          py-1.5 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
-                          ${location.pathname === '/financial/reports'
-                            ? 'bg-red-500 text-white shadow-sm hover:bg-red-500 hover:text-white' 
-                            : 'text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200'
+                          w-full flex items-center justify-start px-3 
+                          py-2 text-sm font-medium rounded-md h-10 min-h-[44px] touch-manipulation pointer-events-auto
+                          ${currentPathname === '/financial/reports'
+                            ? 'bg-[#C0392B] text-white shadow-sm hover:bg-[#A93226] hover:text-white' 
+                            : 'text-gray-800 hover:text-gray-900 hover:bg-gray-50 transition-colors duration-200'
                           }
                         `}
                         onClick={(e) => {
@@ -845,7 +930,7 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
                           }
                         }}
                       >
-                        <BarChart3 className="h-3 w-3 mr-2" />
+                        <BarChart3 className={`h-3 w-3 mr-2 ${currentPathname === '/financial/reports' ? 'text-white' : 'text-gray-900'}`} />
                         <span className="text-sm">Relatórios</span>
                       </Button>
                     </div>
@@ -855,11 +940,11 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
                 <Button
                   variant="ghost"
                     className={`
-                      w-full flex items-center ${isCollapsed ? 'justify-center px-1' : 'justify-between px-2'} 
-                      py-1.5 text-sm font-medium rounded-md h-9
+                      w-full flex items-center ${isCollapsed ? 'justify-center px-1' : 'justify-between px-3'} 
+                      py-2 text-sm font-medium rounded-md h-10
                       ${isItemActive(item.id)
-                        ? 'bg-red-500 text-white shadow-sm hover:bg-red-500 hover:text-white' 
-                        : 'text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200'
+                        ? 'bg-[#C0392B] text-white shadow-sm hover:bg-[#A93226] hover:text-white' 
+                        : 'text-gray-800 hover:text-gray-900 hover:bg-gray-50 transition-colors duration-200'
                       }
                     `}
                   onClick={() => {
@@ -899,14 +984,14 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
                     } else {
                       const route = routeMap[item.id] || '/dashboard';
                       // Só navegar se não estiver já na rota correta
-                      if (location.pathname !== route) {
+                      if (currentPathname !== route) {
                         navigate(route, { state: { activeTab: item.id } });
                       }
                     }
                   }}
                 >
                   <div className="flex items-center">
-                    <div className={`flex-shrink-0 ${isCollapsed ? 'mx-auto' : 'mr-2'}`}>
+                    <div className={`flex-shrink-0 ${isCollapsed ? 'mx-auto' : 'mr-2'} ${isItemActive(item.id) ? 'text-white' : 'text-gray-900'}`}>
                       {item.icon}
                     </div>
                     {!isCollapsed && (
@@ -915,24 +1000,79 @@ const CustomSidebar: React.FC<CustomSidebarProps> = ({ activeTab, onTabChange, m
                       </span>
                     )}
                   </div>
+                  {!isCollapsed && item.hasSubmenu && (
+                    <ChevronRight className={`h-4 w-4 ${isItemActive(item.id) ? 'text-white' : 'text-gray-900'}`} />
+                  )}
                 </Button>
               )}
             </div>
           );
           })}
-        </div>
+          </div>
+        )}
       </nav>
 
-      {/* Footer section */}
-      <div className="p-2 border-t border-border">
+      {/* Separador */}
+      <div className="border-b border-gray-100" />
+
+      {/* Seção de navegação secundária - Notificações */}
+      {(!isCollapsed || isMobile) && (
+        <div className="px-2 py-2">
+          <Button
+            variant="ghost"
+            className={`
+              w-full flex items-center px-3 
+              py-2 text-sm font-medium rounded-md h-10
+              text-gray-800 hover:text-gray-900 hover:bg-gray-50 transition-colors duration-200
+            `}
+            onClick={() => {
+              // TODO: Implementar navegação para notificações
+              if (isMobile) {
+                setIsMobileOpen(false);
+              }
+            }}
+          >
+            <Bell className="h-4 w-4 mr-2" />
+            <span className="text-sm">Notificações</span>
+          </Button>
+        </div>
+      )}
+
+      {/* Botão Sair */}
+      <div className="p-2 border-t border-gray-100">
         {(!isCollapsed || isMobile) && (
-          <div className="text-[10px] text-sidebar-foreground/60 text-center">
-            Titaniumfix 2025
-          </div>
+          <Button
+            variant="outline"
+            className="w-full flex items-center justify-center px-2 py-2 text-sm font-medium rounded-md h-10 border-gray-100 text-gray-800 hover:bg-gray-50 transition-colors duration-200"
+            onClick={handleLogout}
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            <span>Sair</span>
+          </Button>
         )}
       </div>
     </>
-  );
+  ), [
+    isMobile,
+    isCollapsed,
+    isLoading,
+    hasLoadedOnce,
+    availableMenuItems,
+    tasksExpanded,
+    coursesExpanded,
+    financialExpanded,
+    userRoleRaw,
+    clientId,
+    isItemActive,
+    currentPathname,
+    onTabChange,
+    navigate,
+    setIsMobileOpen,
+    routeMap,
+    userData,
+    getAvatarInitials,
+    handleLogout
+  ]);
 
   // Desktop: Sidebar fixa
   if (!isMobile) {

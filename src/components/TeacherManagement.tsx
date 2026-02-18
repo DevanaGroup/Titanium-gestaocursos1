@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,7 +19,7 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { Search, Edit, Trash2, UserCircle, Plus, MoreVertical, Ban, PowerOff, CircleAlert, Filter } from "lucide-react";
+import { Search, Edit, Trash2, UserCircle, Plus, MoreVertical, Ban, PowerOff, CircleAlert, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -276,6 +275,10 @@ export const TeacherManagement = () => {
   const [currentUserData, setCurrentUserData] = useState<User | null>(null);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [selectedUserForDeletion, setSelectedUserForDeletion] = useState<string | null>(null);
+  
+  // Estados para paginação
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const selectedTeacherForDelete = selectedUserForDeletion ? teachers.find(t => t.uid === selectedUserForDeletion) : null;
   const selectedTeacherName = selectedTeacherForDelete ? (selectedTeacherForDelete.fullName || selectedTeacherForDelete.displayName || "Professor") : "Professor";
   const [isLoadingCEP, setIsLoadingCEP] = useState(false);
@@ -796,11 +799,22 @@ export const TeacherManagement = () => {
     const fullName = teacher.fullName || teacher.displayName || '';
     return (
       fullName.toLowerCase().includes(searchLower) ||
-      teacher.email.toLowerCase().includes(searchLower) ||
+      (teacher.email || '').toLowerCase().includes(searchLower) ||
       (teacher.cpf || '').includes(searchLower) ||
       (teacher.cro || '').toLowerCase().includes(searchLower)
     );
   });
+
+  // Cálculos de paginação
+  const totalPages = Math.ceil(filteredTeachers.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedTeachers = filteredTeachers.slice(startIndex, endIndex);
+
+  // Resetar página quando o termo de busca mudar
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   const getInitials = (fullName: string) => {
     const parts = fullName.trim().split(' ');
@@ -811,26 +825,25 @@ export const TeacherManagement = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader className="min-h-[120px] flex flex-col justify-center">
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <UserCircle className="h-5 w-5" />
-                Gerenciar Professores
-              </CardTitle>
-              <CardDescription>
-                Gerencie os professores cadastrados na plataforma
-              </CardDescription>
-            </div>
-            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="bg-red-500 text-white hover:bg-red-600">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Adicionar Professor
-                </Button>
-              </DialogTrigger>
+    <div className="flex flex-col h-full min-h-0">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6 flex-shrink-0">
+        <div>
+          <h1 className="text-2xl font-semibold flex items-center gap-2">
+            <UserCircle className="h-5 w-5" />
+            Gerenciar Professores
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Gerencie os professores cadastrados na plataforma
+          </p>
+        </div>
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="bg-red-500 text-white hover:bg-red-600">
+              <Plus className="h-4 w-4 mr-2" />
+              Adicionar Professor
+            </Button>
+          </DialogTrigger>
               <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Adicionar Novo Professor</DialogTitle>
@@ -1372,31 +1385,57 @@ export const TeacherManagement = () => {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-          </div>
-        </CardHeader>
-        <CardContent className="min-h-[600px]">
-          <div className="mb-4">
-            <div className="flex flex-col lg:flex-row gap-3 lg:justify-end">
-              {/* Campo de busca */}
-              <div className="relative flex-1 max-w-md">
-                <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
-                  <Search className="text-muted-foreground/70 w-3.5 h-3.5" />
-                </div>
-                <Input
-                  placeholder="Buscar professores..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 h-9 text-sm"
-                />
+      </div>
+
+      {/* Filtros e busca */}
+      <div className="mb-4 flex-shrink-0">
+        <div className="flex flex-col lg:flex-row gap-3 lg:justify-between lg:items-center">
+          <div className="flex flex-col sm:flex-row gap-3 flex-1">
+            {/* Campo de busca */}
+            <div className="relative flex-1 max-w-md">
+              <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                <Search className="text-muted-foreground/70 w-3.5 h-3.5" />
               </div>
-              
-              {/* Botão de filtro */}
-              <Button variant="outline" size="icon" className="h-9 w-9">
-                <Filter className="h-4 w-4" />
-              </Button>
+              <Input
+                placeholder="Buscar professores..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 h-9 text-sm"
+              />
             </div>
+            
+            {/* Botão de filtro */}
+            <Button variant="outline" size="icon" className="h-9 w-9">
+              <Filter className="h-4 w-4" />
+            </Button>
           </div>
 
+          {/* Seleção de limite de registros */}
+          <div className="flex items-center gap-2">
+            <Label htmlFor="items-per-page-teachers" className="text-sm whitespace-nowrap">
+              Registros por página:
+            </Label>
+            <Select value={itemsPerPage.toString()} onValueChange={(value) => {
+              setItemsPerPage(Number(value));
+              setCurrentPage(1);
+            }}>
+              <SelectTrigger id="items-per-page-teachers" className="w-20 h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabela com scroll */}
+      <div className="flex-1 overflow-hidden flex flex-col border rounded-lg min-h-0">
+        <div className="flex-1 overflow-y-auto min-h-0">
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -1406,20 +1445,19 @@ export const TeacherManagement = () => {
               {searchTerm ? "Nenhum professor encontrado" : "Nenhum professor cadastrado"}
             </div>
           ) : (
-            <div className="rounded-md border min-h-[520px]">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-center">Professor</TableHead>
-                    <TableHead className="text-center">Email</TableHead>
-                    <TableHead className="text-center">CPF</TableHead>
-                    <TableHead className="text-center">CRO</TableHead>
-                    <TableHead className="text-center">Telefone</TableHead>
-                    <TableHead className="text-center">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredTeachers.map((teacher) => (
+            <Table>
+              <TableHeader className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80">
+                <TableRow>
+                  <TableHead className="text-center">Professor</TableHead>
+                  <TableHead className="text-center">Email</TableHead>
+                  <TableHead className="text-center">CPF</TableHead>
+                  <TableHead className="text-center">CRO</TableHead>
+                  <TableHead className="text-center">Telefone</TableHead>
+                  <TableHead className="text-center">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedTeachers.map((teacher) => (
                     <TableRow
                       key={teacher.id}
                       className="cursor-pointer hover:bg-muted/50"
@@ -1499,10 +1537,61 @@ export const TeacherManagement = () => {
                   ))}
                 </TableBody>
               </Table>
-            </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+
+        {/* Paginação */}
+        {!isLoading && filteredTeachers.length > 0 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/50 flex-shrink-0">
+            <div className="text-sm text-muted-foreground">
+              Mostrando {startIndex + 1} a {Math.min(endIndex, filteredTeachers.length)} de {filteredTeachers.length} professores
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronsLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <div className="flex items-center gap-1">
+                <span className="text-sm text-muted-foreground">
+                  Página {currentPage} de {totalPages}
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronsRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Dialog de Edição */}
       <Dialog 

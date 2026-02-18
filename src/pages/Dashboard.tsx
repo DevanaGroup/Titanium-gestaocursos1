@@ -455,101 +455,30 @@ const Dashboard = () => {
           onMobileOpenChange={setMobileSidebarOpen}
         />
         <div className="flex-1 flex flex-col min-h-screen md:h-screen w-full">
-          <header className="bg-white text-gray-900 p-2 md:p-3 h-14 md:h-[80px] z-30 border-b border-gray-200 flex-shrink-0">
-            <div className="flex items-center h-full">
+          {/* Barra de controles mínima - apenas para mobile menu e ações do header */}
+          {(rightAction || isMobile) && (
+            <div className="bg-white border-b border-gray-200 px-2 py-2 flex items-center justify-between flex-shrink-0">
               {/* Botão Menu Mobile */}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setMobileSidebarOpen(true)}
-                className="md:hidden text-gray-900 hover:bg-gray-100 h-10 w-10"
-              >
-                <Menu className="h-5 w-5" />
-              </Button>
-              
-              {/* Botão Colapsar Sidebar - Desktop (fixo à esquerda) */}
-              <div className="hidden md:block">
+              {isMobile && (
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => {
-                    toggleSidebar();
-                  }}
-                  className="text-gray-900 hover:bg-gray-100 h-9 w-9"
-                  title={isCollapsed ? "Expandir sidebar" : "Colapsar sidebar"}
+                  onClick={() => setMobileSidebarOpen(true)}
+                  className="text-gray-900 hover:bg-gray-100 h-10 w-10"
                 >
-                  {isCollapsed ? (
-                    <ChevronRight className="h-5 w-5" />
-                  ) : (
-                    <ChevronLeft className="h-5 w-5" />
-                  )}
+                  <Menu className="h-5 w-5" />
                 </Button>
-              </div>
+              )}
               
-              <div className="flex items-center gap-2 md:gap-4 ml-auto">
-                {/* Ação do Header (botões de salvar, etc.) */}
-                {rightAction && (
-                  <div className="flex items-center">
-                    {rightAction}
-                  </div>
-                )}
-                
-                {/* Avatar e Menu - Desktop */}
-                <div className="hidden md:block">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <div className="flex items-center gap-2 md:gap-4 cursor-pointer">
-                        <div className="hidden md:flex flex-col items-end mr-2">
-                          <span className="font-medium text-sm text-gray-900">{userData.name}</span>
-                          <span className="text-xs opacity-80 text-gray-700">{userData.role}</span>
-                        </div>
-                        <Avatar className="h-8 w-8 md:h-10 md:w-10">
-                          <AvatarImage src={userData.avatar} alt={userData.name} />
-                          <AvatarFallback>{getAvatarInitials(userData.name)}</AvatarFallback>
-                        </Avatar>
-                      </div>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56">
-                      <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => setIsAvatarDialogOpen(true)}>
-                        <Camera className="mr-2 h-4 w-4" />
-                        <span>Configurações de Perfil</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleLogout}>
-                        <span>Sair</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+              {/* Ação do Header (botões de salvar, etc.) */}
+              {rightAction && (
+                <div className="flex items-center ml-auto">
+                  {rightAction}
                 </div>
-
-                {/* Avatar - Mobile */}
-                <div className="md:hidden flex items-center gap-2">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-gray-900 hover:bg-gray-100 h-10 w-10 p-0"
-                      >
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={userData.avatar} alt={userData.name} />
-                          <AvatarFallback className="text-xs">{getAvatarInitials(userData.name)}</AvatarFallback>
-                        </Avatar>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56">
-                      <DropdownMenuLabel>{userData.name}</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={handleLogout}>
-                        <span>Sair</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </div>
+              )}
             </div>
-          </header>
+          )}
+          
           <main className="flex-1 dashboard-content bg-background text-foreground p-2 sm:p-4 md:p-6 overflow-y-auto overflow-x-hidden w-full">
             {activeTab === "home" && (
               (userData.role === 'Comercial' || userData.role === 'Diretor Comercial') ? (

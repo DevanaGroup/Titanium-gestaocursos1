@@ -8,6 +8,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { signIn, clearAuthSession } from "@/services/authService";
 import { auth } from "@/config/firebase";
+import { useAuthContext } from "@/contexts/AuthContext";
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -19,8 +20,16 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const { userData, loading: authLoading } = useAuthContext();
 
-  // Limpar sessão antiga ao carregar a página de login
+  // Se já existir uma sessão ativa, redirecionar para a área interna
+  useEffect(() => {
+    if (!authLoading && userData) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [authLoading, userData, navigate]);
+
+  // Limpar sessão antiga ao carregar a página de login (apenas para contas legadas/não autorizadas)
   useEffect(() => {
     const clearOldSession = async () => {
       try {

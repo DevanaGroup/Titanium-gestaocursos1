@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
@@ -20,7 +19,7 @@ import {
   TableRow 
 } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
-import { Search, Plus, Edit, Trash2, Eye, Upload, Download, FileText, Building, Users, UserCheck, History, MoreHorizontal } from "lucide-react";
+import { Search, Plus, Edit, Trash2, Eye, Upload, Download, FileText, Building, Users, UserCheck, History, MoreHorizontal, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { toast } from "sonner";
 import { 
   DropdownMenu,
@@ -123,6 +122,10 @@ export const ClientManagement = () => {
 
   const [collaborators, setCollaborators] = useState<LocalCollaborator[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  
+  // Estados para paginação
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Estados para controle de usuário e role
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -280,6 +283,17 @@ export const ClientManagement = () => {
     (client.name && client.name.toLowerCase().includes(searchTerm.toLowerCase())) || 
     (client.project && client.project.toLowerCase().includes(searchTerm.toLowerCase()))
   );
+
+  // Cálculos de paginação
+  const totalPages = Math.ceil(filteredClients.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedClients = filteredClients.slice(startIndex, endIndex);
+
+  // Resetar página quando o termo de busca mudar
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   // Função para criar log de auditoria para clientes
   const createClientAuditLog = async (action: string, details: string, clientId: string, changes?: Record<string, { from: any; to: any }>) => {
@@ -1066,57 +1080,45 @@ export const ClientManagement = () => {
   };
 
   return (
-    <div className="client-management space-y-6">
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <CardTitle className="text-lg">Gerenciamento de Clientes</CardTitle>
-              <CardDescription className="text-sm">
-                {hasPermission(userRole as HierarchyLevel, 'manage_department')
-                  ? "Cadastre, visualize e gerencie todos os clientes da empresa com atribuição de responsáveis"
-                  : "Visualize e gerencie os clientes pelos quais você é responsável"
-                }
-              </CardDescription>
-            </div>
-            
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none z-10" />
-                <Input
-                  placeholder="Buscar cliente ou projeto..."
-                  className="!pl-10 w-full sm:w-64"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  style={{ paddingLeft: '2.5rem' }}
-                />
-              </div>
+    <div className="client-management flex flex-col h-full min-h-0">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 flex-shrink-0">
+        <div>
+          <h1 className="text-2xl font-semibold">Gerenciamento de Clientes</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {hasPermission(userRole as HierarchyLevel, 'manage_department')
+              ? "Cadastre, visualize e gerencie todos os clientes da empresa com atribuição de responsáveis"
+              : "Visualize e gerencie os clientes pelos quais você é responsável"
+            }
+          </p>
+        </div>
+        
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+          {/* Botões para usuários com permissão de gestão */}
+          {hasPermission(userRole as HierarchyLevel, 'manage_department') && (
+            <>
+              {/* Botão para criar contas - apenas para Diretor de TI */}
+              {userRole === "Diretor de TI" && (
+                <Button 
+                  onClick={handleCreateAccountsForOldClients}
+                  disabled={isLoading}
+                  variant="outline"
+                  size="icon"
+                  className="border-cerrado-green2 text-cerrado-green2 hover:bg-cerrado-green2 hover:text-white"
+                  title="Criar contas para clientes antigos"
+                >
+                  <UserCheck className="h-4 w-4" />
+                </Button>
+              )}
               
-              {/* Botões para usuários com permissão de gestão */}
-              {hasPermission(userRole as HierarchyLevel, 'manage_department') && (
-                <>
-                  {/* Botão para criar contas - apenas para Diretor de TI */}
-                  {userRole === "Diretor de TI" && (
-                    <Button 
-                      onClick={handleCreateAccountsForOldClients}
-                      disabled={isLoading}
-                      variant="outline"
-                      size="icon"
-                      className="border-cerrado-green2 text-cerrado-green2 hover:bg-cerrado-green2 hover:text-white"
-                      title="Criar contas para clientes antigos"
-                    >
-                      <UserCheck className="h-4 w-4" />
-                    </Button>
-                  )}
-                  
-                  <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button className="bg-red-500 hover:bg-red-600 text-white">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Novo Cliente
-                      </Button>
-                    </DialogTrigger>
-                  <DialogContent className="sm:max-w-[600px]">
+              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="bg-red-500 hover:bg-red-600 text-white">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Novo Cliente
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[600px]">
                     <DialogHeader>
                       <DialogTitle>Adicionar Novo Cliente</DialogTitle>
                       <DialogDescription>
@@ -1242,32 +1244,68 @@ export const ClientManagement = () => {
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
-                </>
-              )}
-            </div>
+              </>
+            )}
           </div>
-        </CardHeader>
-        
-        <CardContent className="h-[600px] overflow-y-auto">
+        </div>
+
+      {/* Filtros e busca */}
+      <div className="mb-4 flex-shrink-0">
+        <div className="flex flex-col lg:flex-row gap-3 lg:justify-between lg:items-center">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none z-10" />
+            <Input
+              placeholder="Buscar cliente ou projeto..."
+              className="pl-10 h-9 text-sm"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          {/* Seleção de limite de registros */}
+          <div className="flex items-center gap-2">
+            <Label htmlFor="items-per-page-clients" className="text-sm whitespace-nowrap">
+              Registros por página:
+            </Label>
+            <Select value={itemsPerPage.toString()} onValueChange={(value) => {
+              setItemsPerPage(Number(value));
+              setCurrentPage(1);
+            }}>
+              <SelectTrigger id="items-per-page-clients" className="w-20 h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabela com scroll */}
+      <div className="flex-1 overflow-hidden flex flex-col border rounded-lg min-h-0">
+        <div className="flex-1 overflow-y-auto min-h-0">
           {isLoading ? (
             <div className="text-center py-10">
               <p className="text-gray-500">Carregando clientes...</p>
             </div>
           ) : filteredClients.length > 0 ? (
-            <div className="table-container border rounded-md">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[200px] text-center">Empresa</TableHead>
-                    <TableHead className="w-[180px] text-center">Projeto</TableHead>
-                    <TableHead className="w-[120px] text-center">Status</TableHead>
-                    <TableHead className="w-[160px] text-center">Responsável</TableHead>
-                    <TableHead className="w-[120px] text-center">Última Atualização</TableHead>
-                    <TableHead className="w-[140px] text-center">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredClients.map((client) => (
+            <Table>
+              <TableHeader className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80">
+                <TableRow>
+                  <TableHead className="w-[200px] text-center">Empresa</TableHead>
+                  <TableHead className="w-[180px] text-center">Projeto</TableHead>
+                  <TableHead className="w-[120px] text-center">Status</TableHead>
+                  <TableHead className="w-[160px] text-center">Responsável</TableHead>
+                  <TableHead className="w-[120px] text-center">Última Atualização</TableHead>
+                  <TableHead className="w-[140px] text-center">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedClients.map((client) => (
                     <TableRow key={client.id}>
                       <TableCell>
                         <div className="flex items-center gap-3 max-w-[180px]">
@@ -1354,7 +1392,6 @@ export const ClientManagement = () => {
                   ))}
                 </TableBody>
               </Table>
-            </div>
           ) : (
             <div className="text-center py-10">
               <Building className="h-12 w-12 mx-auto text-gray-400 mb-3" />
@@ -1377,38 +1414,61 @@ export const ClientManagement = () => {
               )}
             </div>
           )}
-        </CardContent>
-        
-        <CardFooter className="border-t px-6 py-4">
-          <div className="w-full flex justify-between items-center">
-            <p className="text-sm text-gray-500">
-              {searchTerm ? (
-                <>
-                  Mostrando {filteredClients.length} de {clients.length} clientes
-                  {filteredClients.length === 0 ? " (nenhum resultado encontrado)" : ""}
-                </>
-              ) : (
-                hasPermission(userRole as HierarchyLevel, 'manage_department')
-                  ? `Total de clientes: ${filteredClients.length}`
-                  : `Clientes atribuídos a você: ${filteredClients.length}`
-              )}
-            </p>
-            {searchTerm && (
-              <Button 
-                variant="outline" 
-                className="flex items-center gap-2"
-                onClick={() => setSearchTerm("")}
+        </div>
+
+        {/* Paginação */}
+        {!isLoading && filteredClients.length > 0 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/50 flex-shrink-0">
+            <div className="text-sm text-muted-foreground">
+              Mostrando {startIndex + 1} a {Math.min(endIndex, filteredClients.length)} de {filteredClients.length} clientes
+              {searchTerm && ` (de ${clients.length} total)`}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                className="h-8 w-8 p-0"
               >
-                <Users size={16} />
-                {hasPermission(userRole as HierarchyLevel, 'manage_department')
-                  ? "Ver todos clientes" 
-                  : "Ver seus clientes"
-                }
+                <ChevronsLeft className="h-4 w-4" />
               </Button>
-            )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <div className="flex items-center gap-1">
+                <span className="text-sm text-muted-foreground">
+                  Página {currentPage} de {totalPages}
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronsRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
-        </CardFooter>
-      </Card>
+        )}
+      </div>
 
       {/* Modal de Edição de Cliente */}
       {selectedClient && (

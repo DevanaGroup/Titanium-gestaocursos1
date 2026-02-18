@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/config/firebase';
 import { useTabCloseLogout } from '@/hooks/useTabCloseLogout';
+import { useInactivityTimeout } from '@/hooks/useInactivityTimeout';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -15,6 +16,9 @@ export const ProtectedRoute = ({ children, redirectTo = '/login' }: ProtectedRou
   
   // Ativa o logout automático quando a guia é fechada
   useTabCloseLogout();
+
+  // Ativa o timeout de inatividade de 60 minutos, renovado a cada ação do usuário
+  useInactivityTimeout();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
