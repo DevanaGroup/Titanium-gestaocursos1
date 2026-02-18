@@ -291,7 +291,7 @@ export interface ExpenseRequest {
   title: string;
   description: string;
   amount: number;
-  category: 'Operacional' | 'Marketing' | 'Administrativo' | 'Tecnologia' | 'Recursos Humanos' | 'Viagem' | 'Alimentação' | 'Material' | 'Combustível' | 'Hospedagem' | 'Transporte' | 'Outros';
+  category: 'Operacional' | 'Marketing' | 'Administrativo' | 'Tecnologia' | 'Recursos Humanos' | 'Viagem' | 'Alimentação' | 'Material' | 'Combustível' | 'Hospedagem' | 'Transporte' | 'Aula' | 'Outros';
   subcategory?: 'Combustível' | 'Pedágio' | 'Estacionamento' | 'Alimentação' | 'Hospedagem' | 'Passagem Aérea' | 'Passagem Terrestre' | 'Taxi/Uber' | 'Material de Escritório' | 'Software' | 'Hardware' | 'Treinamento' | 'Evento' | 'Outros';
   urgency: 'Baixa' | 'Média' | 'Alta' | 'Urgente';
   status: 'Em análise' | 'Aprovado' | 'Reprovado' | 'Cancelado';
@@ -318,6 +318,7 @@ export interface ExpenseRequest {
   clientName?: string;
   projectId?: string;
   projectName?: string;
+  lessonId?: string; // ID da aula vinculada (quando categoria = 'Aula')
   
   // Campos específicos para viagens (quando categoria = 'Viagem')
   isTravel?: boolean;

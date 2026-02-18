@@ -92,7 +92,7 @@ import {
 } from "@/services/fileUploadService";
 import { format, getMonth, getYear } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { getDoc, doc } from "firebase/firestore";
+import { getDoc, doc, collection, query, getDocs, orderBy } from "firebase/firestore";
 import { db } from "@/config/firebase";
 
 export const ExpenseRequestManagement = () => {
@@ -129,7 +129,8 @@ export const ExpenseRequestManagement = () => {
     projectId: "",
     projectName: "",
     isTravel: false,
-    isRecurring: false
+    isRecurring: false,
+    lessonId: ""
   });
 
   // Estados para viagem
@@ -157,6 +158,10 @@ export const ExpenseRequestManagement = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedAttachments, setUploadedAttachments] = useState<ExpenseAttachment[]>([]);
+
+  // Estados para aulas
+  const [availableLessons, setAvailableLessons] = useState<Array<{id: string, protocol?: string, lessonDate?: string, locationName?: string, courseTitle?: string}>>([]);
+  const [isLoadingLessons, setIsLoadingLessons] = useState(false);
 
   // Buscar dados do usuário
   useEffect(() => {
@@ -234,6 +239,60 @@ export const ExpenseRequestManagement = () => {
     }
   };
 
+  // Buscar aulas disponíveis
+  const fetchAvailableLessons = async () => {
+    setIsLoadingLessons(true);
+    try {
+      const lessonsCollection = collection(db, "lessons");
+      const lessonsQuery = query(lessonsCollection, orderBy("createdAt", "desc"));
+      const lessonsSnapshot = await getDocs(lessonsQuery);
+      
+      const lessonsList = await Promise.all(lessonsSnapshot.docs
+        .filter(d => !d.data().deletedAt)
+        .map(async (lessonDoc) => {
+          const data = lessonDoc.data();
+          let courseTitle = "";
+          
+          if (data.courseId) {
+            try {
+              const courseDocRef = doc(db, "courses", data.courseId);
+              const courseDoc = await getDoc(courseDocRef);
+              if (courseDoc.exists()) {
+                const courseData = courseDoc.data();
+                courseTitle = (courseData?.title as string) || "";
+              }
+            } catch (error) {
+              console.error("Erro ao buscar curso:", error);
+            }
+          }
+          
+          return {
+            id: lessonDoc.id,
+            protocol: data.protocol || "",
+            lessonDate: data.lessonDate || "",
+            locationName: data.locationName || "",
+            courseTitle: courseTitle
+          };
+        }));
+      
+      setAvailableLessons(lessonsList);
+    } catch (error) {
+      console.error("Erro ao buscar aulas:", error);
+      toast.error("Erro ao carregar aulas disponíveis");
+      setAvailableLessons([]);
+    } finally {
+      setIsLoadingLessons(false);
+    }
+  };
+
+  // Buscar aulas quando categoria "Aula" for selecionada
+  useEffect(() => {
+    if (formData.category === "Aula") {
+      fetchAvailableLessons();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.category]);
+
   // Filtros
   const filteredRequests = requests.filter(request => {
     const matchesSearch = 
@@ -287,6 +346,14 @@ export const ExpenseRequestManagement = () => {
     if (!formData.title || !formData.description || !formData.amount || !formData.expectedDate) {
       toast.error("Preencha todos os campos obrigatórios");
       return;
+    }
+
+    // Validações específicas para categoria Aula
+    if (formData.category === "Aula") {
+      if (!formData.lessonId) {
+        toast.error("É obrigatório vincular uma aula quando a categoria é 'Aula'");
+        return;
+      }
     }
 
     // Validações específicas para viagem
@@ -476,7 +543,8 @@ export const ExpenseRequestManagement = () => {
       projectId: "",
       projectName: "",
       isTravel: false,
-      isRecurring: false
+      isRecurring: false,
+      lessonId: ""
     });
     
     setTravelData({
@@ -751,6 +819,7 @@ export const ExpenseRequestManagement = () => {
                             <SelectItem value="Viagem">Viagem</SelectItem>
                             <SelectItem value="Alimentação">Alimentação</SelectItem>
                             <SelectItem value="Material">Material</SelectItem>
+                            <SelectItem value="Aula">Aula</SelectItem>
                             <SelectItem value="Outros">Outros</SelectItem>
                           </SelectContent>
                         </Select>
@@ -976,7 +1045,7 @@ export const ExpenseRequestManagement = () => {
                   <Label htmlFor="category">Categoria</Label>
                   <Select 
                     value={formData.category} 
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, category: value as ExpenseRequest['category'] }))}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, category: value as ExpenseRequest['category'], lessonId: "" }))}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione" />
@@ -993,6 +1062,7 @@ export const ExpenseRequestManagement = () => {
                       <SelectItem value="Combustível">Combustível</SelectItem>
                       <SelectItem value="Hospedagem">Hospedagem</SelectItem>
                       <SelectItem value="Transporte">Transporte</SelectItem>
+                      <SelectItem value="Aula">Aula</SelectItem>
                       <SelectItem value="Outros">Outros</SelectItem>
                     </SelectContent>
                   </Select>
@@ -1026,6 +1096,47 @@ export const ExpenseRequestManagement = () => {
                   </Select>
                 </div>
               </div>
+
+              {/* Select de Aula - aparece apenas quando categoria é "Aula" */}
+              {formData.category === "Aula" && (
+                <div className="space-y-2">
+                  <Label htmlFor="lessonId">Vincular à Aula *</Label>
+                  <Select 
+                    value={formData.lessonId} 
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, lessonId: value }))}
+                    disabled={isLoadingLessons}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={isLoadingLessons ? "Carregando aulas..." : "Selecione uma aula"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableLessons.length === 0 ? (
+                        <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                          {isLoadingLessons ? "Carregando aulas..." : "Nenhuma aula disponível"}
+                        </div>
+                      ) : (
+                        availableLessons.map((lesson) => {
+                          const displayText = [
+                            lesson.protocol && `Protocolo: ${lesson.protocol}`,
+                            lesson.courseTitle && `Curso: ${lesson.courseTitle}`,
+                            lesson.lessonDate && `Data: ${format(new Date(lesson.lessonDate + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })}`,
+                            lesson.locationName && `Local: ${lesson.locationName}`
+                          ].filter(Boolean).join(" • ") || `Aula ${lesson.id}`;
+                          
+                          return (
+                            <SelectItem key={lesson.id} value={lesson.id}>
+                              {displayText}
+                            </SelectItem>
+                          );
+                        })
+                      )}
+                    </SelectContent>
+                  </Select>
+                  {formData.category === "Aula" && !formData.lessonId && (
+                    <p className="text-xs text-muted-foreground">Selecione uma aula para vincular esta despesa</p>
+                  )}
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
