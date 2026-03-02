@@ -11,7 +11,7 @@ import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 import * as functions from "firebase-functions";
 import { onSchedule } from "firebase-functions/v2/scheduler";
-import { onRequest, onCall, CallableRequest } from "firebase-functions/v2/https";
+import { onRequest, onCall, CallableRequest, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { checkAndSendTaskNotifications } from "./taskNotificationService";
 import { processNewTaskCreated } from "./newTaskNotificationService";
@@ -1352,6 +1352,171 @@ export const deleteUserPermanently = onCall({
   await admin.auth().deleteUser(targetUserId);
 
   return { success: true, message: "Usuário removido permanentemente" };
+});
+
+/**
+ * Busca usuário em users ou collaborators_unified (projeto pode usar qualquer coleção)
+ */
+async function getUserDoc(uid: string): Promise<admin.firestore.DocumentSnapshot | null> {
+  const usersDoc = await admin.firestore().collection("users").doc(uid).get();
+  if (usersDoc.exists) return usersDoc;
+  const unifiedDoc = await admin.firestore().collection("collaborators_unified").doc(uid).get();
+  if (unifiedDoc.exists) return unifiedDoc;
+  // Buscar por firebaseUid/uid em collaborators_unified (doc.id pode ser diferente)
+  const byUid = await admin.firestore().collection("collaborators_unified")
+    .where("uid", "==", uid).limit(1).get();
+  if (!byUid.empty) return byUid.docs[0];
+  const byFirebaseUid = await admin.firestore().collection("collaborators_unified")
+    .where("firebaseUid", "==", uid).limit(1).get();
+  if (!byFirebaseUid.empty) return byFirebaseUid.docs[0];
+  return null;
+}
+
+/**
+ * Resolve o Firebase Auth UID do documento (uid, firebaseUid ou doc.id)
+ */
+function resolveAuthUid(doc: admin.firestore.DocumentSnapshot): string {
+  const d = doc.data();
+  return (d?.uid || d?.firebaseUid || doc.id) as string;
+}
+
+/**
+ * Cria token customizado para permitir que admin faça login como outro usuário (impersonate)
+ * Suporta: users, collaborators_unified; roles admin/adminTI/Nível 0-3
+ */
+const CORS_ORIGINS = [
+  "http://localhost:8080",
+  "http://localhost:3000",
+  "http://127.0.0.1:8080",
+  "http://127.0.0.1:3000",
+  "https://titanium-cursos.web.app",
+  "https://titanium-cursos.firebaseapp.com"
+];
+
+export const createCustomTokenForImpersonation = onCall({
+  memory: "256MiB",
+  maxInstances: 1,
+  cors: CORS_ORIGINS
+}, async (request: CallableRequest) => {
+  try {
+    if (!request.auth?.uid) {
+      throw new HttpsError("unauthenticated", "Usuário não autenticado");
+    }
+
+    const callerUid = request.auth.uid;
+    const targetUserId = (request.data?.targetUserId as string)?.trim();
+
+    if (!targetUserId) {
+      throw new HttpsError("invalid-argument", "targetUserId é obrigatório");
+    }
+
+    const callerDoc = await getUserDoc(callerUid);
+    if (!callerDoc?.exists) {
+      throw new HttpsError("not-found", "Usuário chamador não encontrado em users ou collaborators_unified");
+    }
+
+    const callerData = callerDoc.data();
+    const callerLevel = (callerData?.hierarchyLevel as string) || "";
+
+    const canImpersonate = callerLevel === "Nível 0" || callerLevel === "Nível 1";
+
+    if (!canImpersonate) {
+      throw new HttpsError("permission-denied", `Seu nível (${callerLevel}) não permite fazer login como outro usuário. Apenas Nível 0 e Nível 1 podem.`);
+    }
+
+    const targetDoc = await getUserDoc(targetUserId);
+    if (!targetDoc?.exists) {
+      throw new HttpsError("not-found", "Usuário alvo não encontrado em users ou collaborators_unified");
+    }
+
+    const targetAuthUid = resolveAuthUid(targetDoc);
+
+    const customToken = await admin.auth().createCustomToken(targetAuthUid);
+
+    await admin.firestore().collection("auditLogs").add({
+      action: "impersonate_login",
+      performedBy: callerUid,
+      performedByName: callerData?.firstName || callerData?.email || callerUid,
+      performedOn: targetAuthUid,
+      details: `Login como usuário ${targetAuthUid} por ${callerData?.email || callerUid}`,
+      entityType: "collaborator",
+      changes: {},
+      timestamp: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    return { customToken };
+  } catch (err: any) {
+    if (err instanceof HttpsError) throw err;
+    logger.error("createCustomTokenForImpersonation error", err);
+    throw new HttpsError("internal", err?.message || "Erro ao criar token de impersonação");
+  }
+});
+
+/**
+ * Admin define nova senha para um usuário
+ * Suporta: users, collaborators_unified; roles admin/adminTI/Nível 0-3
+ */
+export const updateUserPassword = onCall({
+  memory: "256MiB",
+  maxInstances: 1,
+  cors: CORS_ORIGINS
+}, async (request: CallableRequest) => {
+  try {
+    if (!request.auth?.uid) {
+      throw new HttpsError("unauthenticated", "Usuário não autenticado");
+    }
+
+    const callerUid = request.auth.uid;
+    const targetUserId = (request.data?.targetUserId as string)?.trim();
+    const newPassword = (request.data?.newPassword as string)?.trim();
+
+    if (!targetUserId || !newPassword) {
+      throw new HttpsError("invalid-argument", "targetUserId e newPassword são obrigatórios");
+    }
+
+    if (newPassword.length < 6) {
+      throw new HttpsError("invalid-argument", "A senha deve ter pelo menos 6 caracteres");
+    }
+
+    const callerDoc = await getUserDoc(callerUid);
+    if (!callerDoc?.exists) {
+      throw new HttpsError("not-found", "Usuário chamador não encontrado");
+    }
+
+    const callerData = callerDoc.data();
+    const callerLevel = (callerData?.hierarchyLevel as string) || "";
+    const canResetPassword = callerLevel === "Nível 0" || callerLevel === "Nível 1";
+
+    if (!canResetPassword) {
+      throw new HttpsError("permission-denied", `Seu nível (${callerLevel}) não permite redefinir senha. Apenas Nível 0 e Nível 1 podem.`);
+    }
+
+    const targetDoc = await getUserDoc(targetUserId);
+    if (!targetDoc?.exists) {
+      throw new HttpsError("not-found", "Usuário alvo não encontrado");
+    }
+
+    const targetAuthUid = resolveAuthUid(targetDoc);
+
+    await admin.auth().updateUser(targetAuthUid, { password: newPassword });
+
+    await admin.firestore().collection("auditLogs").add({
+      action: "admin_password_reset",
+      performedBy: callerUid,
+      performedByName: callerData?.firstName || callerData?.email || callerUid,
+      performedOn: targetAuthUid,
+      details: `Senha redefinida para usuário ${targetAuthUid} por ${callerData?.email || callerUid}`,
+      entityType: "collaborator",
+      changes: {},
+      timestamp: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    return { success: true, message: "Senha atualizada com sucesso" };
+  } catch (err: any) {
+    if (err instanceof HttpsError) throw err;
+    logger.error("updateUserPassword error", err);
+    throw new HttpsError("internal", err?.message || "Erro ao atualizar senha");
+  }
 });
 
 /**

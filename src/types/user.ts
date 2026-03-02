@@ -9,6 +9,8 @@ export type HierarchyLevel =
 
 export interface User {
   uid: string;
+  /** Firebase Auth UID - use para impersonation quando disponível */
+  firebaseUid?: string;
   email: string | null;
   firstName: string;
   lastName: string;

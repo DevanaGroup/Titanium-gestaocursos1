@@ -26,6 +26,8 @@ export enum TaskPriority {
 export interface Collaborator {
   id: string;
   uid: string;
+  /** Firebase Auth UID - use este para impersonation quando disponível */
+  firebaseUid?: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -93,6 +95,7 @@ export interface Task {
 
 export interface User {
   uid: string;
+  firebaseUid?: string;
   email: string;
   firstName: string;
   lastName: string;

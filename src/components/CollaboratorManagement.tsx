@@ -20,7 +20,7 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { Search, Edit, Trash2, Eye, Users, CalendarIcon, History, Plus, MoreVertical, Ban, PowerOff, CircleAlert, Filter } from "lucide-react";
+import { Search, Edit, Trash2, Eye, Users, CalendarIcon, History, Plus, MoreVertical, Ban, PowerOff, CircleAlert, Filter, LogIn, Lock, Mail, Key } from "lucide-react";
 import { toast } from "sonner";
 import { 
   Select, 
@@ -45,6 +45,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { db, FUNCTIONS_BASE_URL } from "@/config/firebase";
@@ -66,7 +69,8 @@ import {
 } from "@/utils/hierarchyUtils";
 import { PermissionsManager } from "@/components/PermissionsManager";
 import { HistoryDialog } from "@/components/HistoryDialog";
-import { performHardDeleteUser } from "@/services/userService";
+import { performHardDeleteUser, loginAsUser, adminUpdateUserPassword } from "@/services/userService";
+import { sendPasswordResetEmail } from "@/services/passwordResetService";
 
 // Funções utilitárias para controle do modo administrativo
 const enableAdministrativeMode = () => {
@@ -133,6 +137,11 @@ export const CollaboratorManagement = () => {
   const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
   const [selectedCollaboratorForHistory, setSelectedCollaboratorForHistory] = useState<Collaborator | null>(null);
   
+  // Estados para redefinição de senha
+  const [isPasswordResetDialogOpen, setIsPasswordResetDialogOpen] = useState(false);
+  const [passwordResetCollaborator, setPasswordResetCollaborator] = useState<Collaborator | null>(null);
+  const [newPasswordValue, setNewPasswordValue] = useState("");
+  
   const [newCollaborator, setNewCollaborator] = useState<Omit<Collaborator, 'id' | 'createdAt' | 'updatedAt'> & { password: string }>({
     firstName: "",
     lastName: "",
@@ -189,6 +198,7 @@ export const CollaboratorManagement = () => {
             return {
               id: doc.id,
               uid: uid,
+              firebaseUid: (data.firebaseUid || data.uid || doc.id) as string,
               firstName: data.firstName || "",
               lastName: data.lastName || "",
               email: data.email || "",
@@ -1004,6 +1014,65 @@ export const CollaboratorManagement = () => {
     setIsHistoryDialogOpen(true);
   };
 
+  const handleLoginAs = async (collaborator: Collaborator) => {
+    const authUid = collaborator.firebaseUid || collaborator.uid;
+    if (!authUid) {
+      toast.error("Usuário sem UID válido");
+      return;
+    }
+    try {
+      enableAdministrativeMode();
+      await loginAsUser(authUid);
+      toast.success(`Logado como ${collaborator.firstName} ${collaborator.lastName}`);
+      navigate("/dashboard");
+      window.location.reload();
+    } catch (error: any) {
+      const msg = error?.message || "Erro ao fazer login como usuário";
+      toast.error(msg);
+      disableAdministrativeModeImmediate();
+    }
+  };
+
+  const handleSendPasswordResetEmail = async (collaborator: Collaborator) => {
+    if (!collaborator.email) {
+      toast.error("Usuário sem e-mail cadastrado");
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(collaborator.email);
+      toast.success(`E-mail de redefinição enviado para ${collaborator.email}`);
+    } catch (error: any) {
+      toast.error(error?.message || "Erro ao enviar e-mail de redefinição");
+    }
+  };
+
+  const handleOpenDefinePasswordDialog = (collaborator: Collaborator) => {
+    setPasswordResetCollaborator(collaborator);
+    setNewPasswordValue("");
+    setIsPasswordResetDialogOpen(true);
+  };
+
+  const handleConfirmDefinePassword = async () => {
+    const authUid = passwordResetCollaborator?.firebaseUid || passwordResetCollaborator?.uid;
+    if (!authUid || !newPasswordValue) {
+      toast.error("Preencha a nova senha");
+      return;
+    }
+    if (newPasswordValue.length < 6) {
+      toast.error("A senha deve ter pelo menos 6 caracteres");
+      return;
+    }
+    try {
+      await adminUpdateUserPassword(authUid, newPasswordValue);
+      toast.success("Senha definida com sucesso");
+      setIsPasswordResetDialogOpen(false);
+      setPasswordResetCollaborator(null);
+      setNewPasswordValue("");
+    } catch (error: any) {
+      toast.error(error?.message || "Erro ao definir senha");
+    }
+  };
+
   const renderCreateCollaboratorForm = () => (
     <Card className="shadow-md hover:shadow-lg transition-shadow mt-4">
       <CardHeader>
@@ -1489,18 +1558,43 @@ export const CollaboratorManagement = () => {
                         <History className="mr-2 h-4 w-4" />
                         Ver histórico
                       </DropdownMenuItem>
-                      {(() => {
-                        const canManage = hasPermission(currentUserData?.hierarchyLevel || "Nível 5", 'manage_department');
-                        console.log("🔍 CollaboratorManagement - Verificação de permissão:", {
-                          currentUserData: currentUserData,
-                          hierarchyLevel: currentUserData?.hierarchyLevel,
-                          canManage: canManage,
-                          colaboradorEditando: collaborator.firstName
-                        });
-                        return canManage;
-                      })() && (
+                      {(["Nível 0", "Nível 1"].includes(currentUserData?.hierarchyLevel || "")) && (
                         <>
                           <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => handleLoginAs(collaborator)}
+                            className="cursor-pointer"
+                          >
+                            <LogIn className="mr-2 h-4 w-4" />
+                            Logar como
+                          </DropdownMenuItem>
+                          <DropdownMenuSub>
+                            <DropdownMenuSubTrigger className="cursor-pointer">
+                              <Lock className="mr-2 h-4 w-4" />
+                              Redefinir senha
+                            </DropdownMenuSubTrigger>
+                            <DropdownMenuSubContent>
+                              <DropdownMenuItem
+                                onClick={() => handleOpenDefinePasswordDialog(collaborator)}
+                                className="cursor-pointer"
+                              >
+                                <Key className="mr-2 h-4 w-4" />
+                                Definir nova senha
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleSendPasswordResetEmail(collaborator)}
+                                className="cursor-pointer"
+                              >
+                                <Mail className="mr-2 h-4 w-4" />
+                                Enviar por e-mail
+                              </DropdownMenuItem>
+                            </DropdownMenuSubContent>
+                          </DropdownMenuSub>
+                          <DropdownMenuSeparator />
+                        </>
+                      )}
+                      {hasPermission(currentUserData?.hierarchyLevel || "Nível 5", 'manage_department') && (
+                        <>
                           <DropdownMenuItem
                             onClick={() => handleEditCollaborator(collaborator)}
                             className="cursor-pointer"
@@ -1585,6 +1679,44 @@ export const CollaboratorManagement = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDeleteConfirmOpen(false)}>
               Cancelar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo para definir nova senha */}
+      <Dialog open={isPasswordResetDialogOpen} onOpenChange={setIsPasswordResetDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Key className="h-5 w-5" />
+              Definir nova senha
+            </DialogTitle>
+            <DialogDescription>
+              {passwordResetCollaborator && (
+                <>Defina uma nova senha para <strong>{passwordResetCollaborator.firstName} {passwordResetCollaborator.lastName}</strong></>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="newPassword">Nova senha (mín. 6 caracteres)</Label>
+              <Input
+                id="newPassword"
+                type="password"
+                value={newPasswordValue}
+                onChange={(e) => setNewPasswordValue(e.target.value)}
+                placeholder="Digite a nova senha"
+                minLength={6}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsPasswordResetDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleConfirmDefinePassword} disabled={newPasswordValue.length < 6}>
+              Definir senha
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -22,7 +22,7 @@ import { CourseManagement } from "@/components/CourseManagement";
 import { LessonManagement } from "@/components/LessonManagement";
 import { TeacherManagement } from "@/components/TeacherManagement";
 import { EventosManagement } from "@/components/EventosManagement";
-import { SidebarProvider, useSidebar } from "@/contexts/SidebarContext";
+import { SidebarProvider } from "@/contexts/SidebarContext";
 import CustomSidebar from "@/components/CustomSidebar";
 import KanbanBoard from "@/components/KanbanBoard";
 import ArchivedTasks from "@/components/ArchivedTasks";
@@ -57,7 +57,7 @@ const Dashboard = () => {
   
   const navigate = useNavigate();
   const location = useLocation();
-  // REMOVIDO: const { rightAction } = useHeaderActions();
+  const { rightAction } = useHeaderActions();
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<"home" | "collaborators" | "clients" | "calendar" | "eventos" | "tasks" | "tasks-archived" | "chatbot" | "expense-requests" | "financial-incomes" | "financial-expenses" | "financial-teacher-payments" | "financial-reports" | "presets" | "courses" | "lessons" | "teachers">("home");
   const [avatarUrl, setAvatarUrl] = useState("/placeholder.svg");
@@ -432,21 +432,16 @@ const Dashboard = () => {
     setEditableLastName(e.target.value);
   }, []);
 
-  // Componente interno que usa o contexto do sidebar
-  const DashboardContent = () => {
-    const { isCollapsed, toggleSidebar } = useSidebar();
-    const { rightAction } = useHeaderActions();
-    
-    // Memoizar o handler de mudança de tab para evitar re-renderizações
-    const handleTabChange = useCallback((tab: string) => {
-      if (tab === "documents") {
-        navigate("/documents");
-        return;
-      }
-      setActiveTab(tab as any);
-    }, [navigate]);
-    
-    return (
+  const handleTabChange = useCallback((tab: string) => {
+    if (tab === "documents") {
+      navigate("/documents");
+      return;
+    }
+    setActiveTab(tab as any);
+  }, [navigate]);
+
+  return (
+    <SidebarProvider>
       <div className="flex h-screen w-full overflow-hidden">
         <CustomSidebar 
           activeTab={activeTab} 
@@ -692,12 +687,6 @@ const Dashboard = () => {
           </main>
         </div>
       </div>
-    );
-  };
-
-  return (
-    <SidebarProvider>
-      <DashboardContent />
       <Dialog open={isAvatarDialogOpen} onOpenChange={setIsAvatarDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>

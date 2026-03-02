@@ -19,7 +19,7 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { Search, Edit, Trash2, UserCircle, Plus, MoreVertical, Ban, PowerOff, CircleAlert, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { Search, Edit, Trash2, UserCircle, Plus, MoreVertical, Ban, PowerOff, CircleAlert, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, LogIn, Lock, Mail, Key } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -49,8 +49,13 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
-import { performHardDeleteUser } from "@/services/userService";
+import { performHardDeleteUser, loginAsUser, adminUpdateUserPassword } from "@/services/userService";
+import { sendPasswordResetEmail } from "@/services/passwordResetService";
+import { useNavigate } from "react-router-dom";
 
 interface TeacherAddress {
   cep: string;
@@ -96,6 +101,12 @@ const disableAdministrativeMode = () => {
     (window as any).intentionalLogout = false;
     if (import.meta.env.DEV) console.debug('Modo administrativo desativado');
   }, 1000);
+};
+
+const disableAdministrativeModeImmediate = () => {
+  (window as any).administrativeOperation = false;
+  (window as any).collaboratorCreationInProgress = false;
+  (window as any).intentionalLogout = false;
 };
 
 // Lista de idiomas disponíveis
@@ -266,6 +277,7 @@ const processImage = (file: File): Promise<string> => {
 };
 
 export const TeacherManagement = () => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -275,6 +287,9 @@ export const TeacherManagement = () => {
   const [currentUserData, setCurrentUserData] = useState<User | null>(null);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [selectedUserForDeletion, setSelectedUserForDeletion] = useState<string | null>(null);
+  const [isPasswordResetDialogOpen, setIsPasswordResetDialogOpen] = useState(false);
+  const [passwordResetTeacher, setPasswordResetTeacher] = useState<TeacherData | null>(null);
+  const [newPasswordValue, setNewPasswordValue] = useState("");
   
   // Estados para paginação
   const [currentPage, setCurrentPage] = useState(1);
@@ -355,6 +370,7 @@ export const TeacherManagement = () => {
           return {
             id: doc.id,
             uid: uid,
+            firebaseUid: (data.firebaseUid || data.uid || doc.id) as string,
             email: data.email || "",
             firstName: firstName,
             lastName: lastName,
@@ -791,6 +807,65 @@ export const TeacherManagement = () => {
       toast.error("Erro ao deletar professor: " + (error.message || "Erro desconhecido"));
     } finally {
       disableAdministrativeMode();
+    }
+  };
+
+  const handleLoginAs = async (teacher: TeacherData) => {
+    const authUid = teacher.firebaseUid || teacher.uid;
+    if (!authUid) {
+      toast.error("Professor sem UID válido");
+      return;
+    }
+    try {
+      enableAdministrativeMode();
+      await loginAsUser(authUid);
+      toast.success(`Logado como ${teacher.fullName || teacher.displayName}`);
+      navigate("/dashboard");
+      window.location.reload();
+    } catch (error: any) {
+      const msg = error?.message || "Erro ao fazer login como usuário";
+      toast.error(msg);
+      disableAdministrativeModeImmediate();
+    }
+  };
+
+  const handleSendPasswordResetEmail = async (teacher: TeacherData) => {
+    if (!teacher.email) {
+      toast.error("Professor sem e-mail cadastrado");
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(teacher.email);
+      toast.success(`E-mail de redefinição enviado para ${teacher.email}`);
+    } catch (error: any) {
+      toast.error(error?.message || "Erro ao enviar e-mail de redefinição");
+    }
+  };
+
+  const handleOpenDefinePasswordDialog = (teacher: TeacherData) => {
+    setPasswordResetTeacher(teacher);
+    setNewPasswordValue("");
+    setIsPasswordResetDialogOpen(true);
+  };
+
+  const handleConfirmDefinePassword = async () => {
+    const authUid = passwordResetTeacher?.firebaseUid || passwordResetTeacher?.uid;
+    if (!authUid || !newPasswordValue) {
+      toast.error("Preencha a nova senha");
+      return;
+    }
+    if (newPasswordValue.length < 6) {
+      toast.error("A senha deve ter pelo menos 6 caracteres");
+      return;
+    }
+    try {
+      await adminUpdateUserPassword(authUid, newPasswordValue);
+      toast.success("Senha definida com sucesso");
+      setIsPasswordResetDialogOpen(false);
+      setPasswordResetTeacher(null);
+      setNewPasswordValue("");
+    } catch (error: any) {
+      toast.error(error?.message || "Erro ao definir senha");
     }
   };
 
@@ -1508,6 +1583,39 @@ export const TeacherManagement = () => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            {(["Nível 0", "Nível 1"].includes(currentUserData?.hierarchyLevel || "")) && (
+                              <>
+                                <DropdownMenuItem
+                                  onClick={() => handleLoginAs(teacher)}
+                                  className="cursor-pointer"
+                                >
+                                  <LogIn className="mr-2 h-4 w-4" />
+                                  Logar como
+                                </DropdownMenuItem>
+                                <DropdownMenuSub>
+                                  <DropdownMenuSubTrigger className="cursor-pointer">
+                                    <Lock className="mr-2 h-4 w-4" />
+                                    Redefinir senha
+                                  </DropdownMenuSubTrigger>
+                                  <DropdownMenuSubContent>
+                                    <DropdownMenuItem
+                                      onClick={() => handleOpenDefinePasswordDialog(teacher)}
+                                      className="cursor-pointer"
+                                    >
+                                      <Key className="mr-2 h-4 w-4" />
+                                      Definir nova senha
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() => handleSendPasswordResetEmail(teacher)}
+                                      className="cursor-pointer"
+                                    >
+                                      <Mail className="mr-2 h-4 w-4" />
+                                      Enviar por e-mail
+                                    </DropdownMenuItem>
+                                  </DropdownMenuSubContent>
+                                </DropdownMenuSub>
+                              </>
+                            )}
                             <DropdownMenuItem
                               onClick={() => {
                                 setSelectedTeacher(teacher);
@@ -2159,6 +2267,44 @@ export const TeacherManagement = () => {
             </Button>
             <Button onClick={handleEditTeacher}>
               Salvar Alterações
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo para definir nova senha */}
+      <Dialog open={isPasswordResetDialogOpen} onOpenChange={setIsPasswordResetDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Key className="h-5 w-5" />
+              Definir nova senha
+            </DialogTitle>
+            <DialogDescription>
+              {passwordResetTeacher && (
+                <>Defina uma nova senha para <strong>{passwordResetTeacher.fullName || passwordResetTeacher.displayName}</strong></>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="newPassword">Nova senha (mín. 6 caracteres)</Label>
+              <Input
+                id="newPassword"
+                type="password"
+                value={newPasswordValue}
+                onChange={(e) => setNewPasswordValue(e.target.value)}
+                placeholder="Digite a nova senha"
+                minLength={6}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsPasswordResetDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleConfirmDefinePassword} disabled={newPasswordValue.length < 6}>
+              Definir senha
             </Button>
           </DialogFooter>
         </DialogContent>

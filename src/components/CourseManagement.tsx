@@ -28,11 +28,12 @@ import {
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { db } from "@/config/firebase";
-import { collection, getDocs, addDoc, updateDoc, doc, serverTimestamp, setDoc, query, orderBy, Timestamp } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, doc, serverTimestamp, setDoc, query, orderBy, where, Timestamp } from "firebase/firestore";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { useNavigate } from "react-router-dom";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -103,6 +104,7 @@ export const CourseManagement = () => {
   // Estados para paginação
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [consultantPopoverOpen, setConsultantPopoverOpen] = useState(false);
   
   const [newCourse, setNewCourse] = useState<Omit<Course, 'id' | 'createdAt' | 'updatedAt'>>({
     title: "",
@@ -132,7 +134,11 @@ export const CourseManagement = () => {
   const fetchConsultants = async () => {
     try {
       const usersCollection = collection(db, "users");
-      const usersSnapshot = await getDocs(usersCollection);
+      const consultantsQuery = query(
+        usersCollection,
+        where("hierarchyLevel", "==", "Nível 4")
+      );
+      const usersSnapshot = await getDocs(consultantsQuery);
       
       const consultantsList: Consultant[] = usersSnapshot.docs.map(doc => {
         const data = doc.data();
@@ -201,9 +207,9 @@ export const CourseManagement = () => {
     }
   };
 
-  const filteredCourses = courses.filter(course => 
-    course.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    course.description.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredCourses = (courses ?? []).filter(course => 
+    (course?.title ?? "").toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (course?.description ?? "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Cálculos de paginação
@@ -286,12 +292,20 @@ export const CourseManagement = () => {
     });
   };
 
-  const handleConsultantChange = (consultantId: string) => {
-    const consultant = consultants.find(c => c.id === consultantId);
+  const handleConsultantChange = (consultantId: string, consultantName: string) => {
     setNewCourse(prev => ({
       ...prev,
       consultantId: consultantId,
-      consultantName: consultant?.name || ""
+      consultantName: consultantName
+    }));
+    setConsultantPopoverOpen(false);
+  };
+
+  const handleConsultantInputChange = (value: string) => {
+    setNewCourse(prev => ({
+      ...prev,
+      consultantId: "", // Campo livre - sem vínculo com usuário
+      consultantName: value
     }));
   };
 
@@ -413,7 +427,7 @@ export const CourseManagement = () => {
     try {
       const courseData = {
         ...newCourse,
-        classes: classes.map(c => ({
+        classes: (classes ?? []).map(c => ({
           numberOfStudents: c.numberOfStudents,
           shift: c.shift,
           startDate: Timestamp.fromDate(c.startDate),
@@ -426,7 +440,12 @@ export const CourseManagement = () => {
         updatedAt: serverTimestamp()
       };
 
-      await addDoc(collection(db, "courses"), courseData);
+      // Remove campos undefined - Firestore não aceita undefined
+      const sanitizedData = Object.fromEntries(
+        Object.entries(courseData).filter(([, value]) => value !== undefined)
+      );
+
+      await addDoc(collection(db, "courses"), sanitizedData);
       toast.success("Curso criado com sucesso!");
       setIsAddDialogOpen(false);
       resetForm();
@@ -445,11 +464,15 @@ export const CourseManagement = () => {
 
     try {
       const courseRef = doc(db, "courses", selectedCourse.id);
-      await setDoc(courseRef, {
+      const editData = {
         ...newCourse,
         deletedAt: null,
         updatedAt: serverTimestamp()
-      }, { merge: true });
+      };
+      const sanitizedEditData = Object.fromEntries(
+        Object.entries(editData).filter(([, value]) => value !== undefined)
+      );
+      await setDoc(courseRef, sanitizedEditData, { merge: true });
 
       toast.success("Curso atualizado com sucesso!");
       setIsEditDialogOpen(false);
@@ -638,7 +661,7 @@ export const CourseManagement = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedCourses.map((course) => (
+                {(paginatedCourses ?? []).map((course) => (
                   <TableRow
                     key={course.id}
                     className="cursor-pointer hover:bg-muted/50"
@@ -860,21 +883,51 @@ export const CourseManagement = () => {
               />
             </div>
 
-            {/* CONSULTOR RESPONSÁVEL */}
+            {/* CONSULTOR RESPONSÁVEL - Digite ou selecione (abre lista ao focar) */}
             <div className="space-y-2">
-              <Label htmlFor="consultantId">CONSULTOR RESPONSÁVEL</Label>
-              <Select value={newCourse.consultantId || ""} onValueChange={handleConsultantChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um consultor" />
-                </SelectTrigger>
-                <SelectContent>
-                  {consultants.map((consultant) => (
-                    <SelectItem key={consultant.id} value={consultant.id}>
-                      {consultant.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="consultantName">CONSULTOR RESPONSÁVEL</Label>
+              <Popover open={consultantPopoverOpen} onOpenChange={setConsultantPopoverOpen}>
+                <PopoverAnchor asChild>
+                  <Input
+                    id="consultantName"
+                    type="text"
+                    value={newCourse.consultantName || ""}
+                    onChange={(e) => handleConsultantInputChange(e.target.value)}
+                    onFocus={() => setConsultantPopoverOpen(true)}
+                    placeholder="Digite o nome ou selecione na lista"
+                    className="w-full"
+                  />
+                </PopoverAnchor>
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                  <div className="max-h-[200px] overflow-y-auto p-1">
+                    {(consultants ?? [])
+                      .filter((c) =>
+                        (newCourse.consultantName || "").trim()
+                          ? (c?.name ?? "").toLowerCase().includes((newCourse.consultantName || "").toLowerCase())
+                          : true
+                      )
+                      .map((consultant) => (
+                        <button
+                          key={consultant.id}
+                          type="button"
+                          className="flex w-full cursor-pointer items-center rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
+                          onClick={() => handleConsultantChange(consultant.id, consultant.name)}
+                        >
+                          {consultant.name}
+                        </button>
+                      ))}
+                    {(consultants ?? []).filter((c) =>
+                      (newCourse.consultantName || "").trim()
+                        ? (c?.name ?? "").toLowerCase().includes((newCourse.consultantName || "").toLowerCase())
+                        : true
+                    ).length === 0 && (
+                      <p className="py-4 text-center text-sm text-muted-foreground">
+                        Nenhum consultor Nível 4 encontrado.
+                      </p>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
 
             {/* Quantidade de TURMAS */}
@@ -989,7 +1042,7 @@ export const CourseManagement = () => {
                 {/* Indicador de progresso das turmas */}
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex gap-2">
-                    {classes.map((_, index) => (
+                    {(classes ?? []).map((_, index) => (
                       <div
                         key={index}
                         className={`h-2 flex-1 rounded ${
@@ -1270,21 +1323,51 @@ export const CourseManagement = () => {
               />
             </div>
 
-            {/* CONSULTOR RESPONSÁVEL */}
+            {/* CONSULTOR RESPONSÁVEL - Digite ou selecione (abre lista ao focar) */}
             <div className="space-y-2">
-              <Label htmlFor="edit-consultantId">CONSULTOR RESPONSÁVEL</Label>
-              <Select value={newCourse.consultantId || ""} onValueChange={handleConsultantChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um consultor" />
-                </SelectTrigger>
-                <SelectContent>
-                  {consultants.map((consultant) => (
-                    <SelectItem key={consultant.id} value={consultant.id}>
-                      {consultant.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="edit-consultantName">CONSULTOR RESPONSÁVEL</Label>
+              <Popover open={consultantPopoverOpen} onOpenChange={setConsultantPopoverOpen}>
+                <PopoverAnchor asChild>
+                  <Input
+                    id="edit-consultantName"
+                    type="text"
+                    value={newCourse.consultantName || ""}
+                    onChange={(e) => handleConsultantInputChange(e.target.value)}
+                    onFocus={() => setConsultantPopoverOpen(true)}
+                    placeholder="Digite o nome ou selecione na lista"
+                    className="w-full"
+                  />
+                </PopoverAnchor>
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                  <div className="max-h-[200px] overflow-y-auto p-1">
+                    {(consultants ?? [])
+                      .filter((c) =>
+                        (newCourse.consultantName || "").trim()
+                          ? (c?.name ?? "").toLowerCase().includes((newCourse.consultantName || "").toLowerCase())
+                          : true
+                      )
+                      .map((consultant) => (
+                        <button
+                          key={consultant.id}
+                          type="button"
+                          className="flex w-full cursor-pointer items-center rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
+                          onClick={() => handleConsultantChange(consultant.id, consultant.name)}
+                        >
+                          {consultant.name}
+                        </button>
+                      ))}
+                    {(consultants ?? []).filter((c) =>
+                      (newCourse.consultantName || "").trim()
+                        ? (c?.name ?? "").toLowerCase().includes((newCourse.consultantName || "").toLowerCase())
+                        : true
+                    ).length === 0 && (
+                      <p className="py-4 text-center text-sm text-muted-foreground">
+                        Nenhum consultor Nível 4 encontrado.
+                      </p>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
 
             {/* Quantidade de TURMAS */}
