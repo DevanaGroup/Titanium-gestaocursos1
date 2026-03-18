@@ -109,3 +109,11 @@ export const deleteEvento = async (id: string): Promise<void> => {
     updatedAt: serverTimestamp(),
   });
 };
+
+export const getEventosForMonth = async (year: number, month: number): Promise<Evento[]> => {
+  const all = await getEventos();
+  return all.filter((e) => {
+    const d = e.date;
+    return d.getFullYear() === year && d.getMonth() === month - 1;
+  });
+};

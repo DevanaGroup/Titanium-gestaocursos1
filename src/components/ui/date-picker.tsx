@@ -1,9 +1,8 @@
 import * as React from "react";
 import { CalendarIcon } from "lucide-react";
-import { format } from "date-fns";
+import { format, parse, isValid } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
@@ -24,26 +23,81 @@ export function DatePicker({
   placeholder = "Selecione uma data",
   className
 }: DatePickerProps) {
+  const [inputValue, setInputValue] = React.useState(
+    date ? format(date, "dd/MM/yyyy") : ""
+  );
+  const [open, setOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    setInputValue(date ? format(date, "dd/MM/yyyy") : "");
+  }, [date]);
+
+  function applyMask(value: string) {
+    const digits = value.replace(/\D/g, "").slice(0, 8);
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+  }
+
+  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const masked = applyMask(e.target.value);
+    setInputValue(masked);
+
+    if (masked.length === 10) {
+      const parsed = parse(masked, "dd/MM/yyyy", new Date());
+      if (isValid(parsed)) {
+        onDateChange?.(parsed);
+      }
+    } else if (masked.length === 0) {
+      onDateChange?.(undefined);
+    }
+  }
+
+  function handleInputKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
+      const parsed = parse(inputValue, "dd/MM/yyyy", new Date());
+      if (isValid(parsed)) {
+        onDateChange?.(parsed);
+        setOpen(false);
+      }
+    }
+  }
+
+  function handleCalendarSelect(selected: Date | undefined) {
+    onDateChange?.(selected);
+    setOpen(false);
+  }
+
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button
-          variant={"outline"}
+        <div
           className={cn(
-            "w-full justify-start text-left font-normal",
-            !date && "text-muted-foreground",
+            "flex items-center w-full rounded-md border border-input bg-background shadow-sm hover:shadow-md transition-all duration-200 h-10 px-3 gap-2",
             className
           )}
         >
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {date ? format(date, "dd/MM/yyyy", { locale: ptBR }) : <span>{placeholder}</span>}
-        </Button>
+          <CalendarIcon
+            className="h-4 w-4 text-muted-foreground shrink-0 cursor-pointer"
+            onClick={() => setOpen(true)}
+          />
+          <input
+            type="text"
+            value={inputValue}
+            onChange={handleInputChange}
+            onKeyDown={handleInputKeyDown}
+            placeholder={placeholder}
+            maxLength={10}
+            className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0">
         <Calendar
           mode="single"
           selected={date}
-          onSelect={onDateChange}
+          onSelect={handleCalendarSelect}
           initialFocus
           locale={ptBR}
         />
