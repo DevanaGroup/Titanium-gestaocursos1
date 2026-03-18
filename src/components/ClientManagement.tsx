@@ -470,7 +470,7 @@ export const ClientManagement = () => {
         // 1. Criar usuário no Firebase Auth via função cloud
         const token = await currentUser.getIdToken();
         
-        const createUserResponse = await fetch('https://us-central1-titanium-cursos.cloudfunctions.net/createUserAuth', {
+        const createUserResponse = await fetch(`${FUNCTIONS_BASE_URL}/createUserAuth`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -680,7 +680,7 @@ export const ClientManagement = () => {
           // 1. Criar usuário no Firebase Auth via função cloud
           const token = await currentUser.getIdToken();
           
-          const createUserResponse = await fetch('https://us-central1-titanium-cursos.cloudfunctions.net/createUserAuth', {
+          const createUserResponse = await fetch(`${FUNCTIONS_BASE_URL}/createUserAuth`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

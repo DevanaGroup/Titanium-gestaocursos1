@@ -1257,7 +1257,7 @@ export const LessonManagement = () => {
                   {(newLesson.needsProfessor === "Não" || newLesson.needsProfessor === "Outro") && <span className="text-red-500"> *</span>}
                 </Label>
                 <Select
-                  value={newLesson.professorId || (newLesson.needsProfessor === "Sim" ? "__none__" : "")}
+                  value={newLesson.professorId || "__none__"}
                   onValueChange={(value) => {
                     if (value === "__none__") {
                       setNewLesson(prev => ({
@@ -1278,10 +1278,10 @@ export const LessonManagement = () => {
                   }}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={teachers.length > 0 ? "Selecione o professor" : "Nenhum professor disponível"} />
+                    <SelectValue placeholder="Selecione o professor" />
                   </SelectTrigger>
                   <SelectContent>
-                    {newLesson.needsProfessor === "Sim" && <SelectItem value="__none__">Nenhum</SelectItem>}
+                    <SelectItem value="__none__">Nenhum</SelectItem>
                     {teachers.filter((t) => t.uid && t.id).map((t) => (
                       <SelectItem key={t.id} value={t.uid}>
                         {t.fullName}
@@ -1825,7 +1825,7 @@ export const LessonManagement = () => {
                   {(newLesson.needsProfessor === "Não" || newLesson.needsProfessor === "Outro") && <span className="text-red-500"> *</span>}
                 </Label>
                 <Select
-                  value={newLesson.professorId || (newLesson.needsProfessor === "Sim" ? "__none__" : "")}
+                  value={newLesson.professorId || "__none__"}
                   onValueChange={(value) => {
                     if (value === "__none__") {
                       setNewLesson(prev => ({
@@ -1846,10 +1846,10 @@ export const LessonManagement = () => {
                   }}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={teachers.length > 0 ? "Selecione o professor" : "Nenhum professor disponível"} />
+                    <SelectValue placeholder="Selecione o professor" />
                   </SelectTrigger>
                   <SelectContent>
-                    {newLesson.needsProfessor === "Sim" && <SelectItem value="__none__">Nenhum</SelectItem>}
+                    <SelectItem value="__none__">Nenhum</SelectItem>
                     {teachers.filter((t) => t.uid && t.id).map((t) => (
                       <SelectItem key={t.id} value={t.uid}>
                         {t.fullName}

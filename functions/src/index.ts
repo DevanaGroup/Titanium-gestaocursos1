@@ -981,13 +981,36 @@ async function getEventCollaboratorsByIds(ids: string[]): Promise<any[]> {
 }
 
 /**
- * Função para criar usuário no Firebase Auth (1st Gen + CORS)
+ * Função para criar usuário no Firebase Auth (1st Gen + CORS explícito)
  * Usado pelos administradores para criar novos colaboradores.
- * cors({ origin: true }) trata preflight (OPTIONS) para localhost e outros domínios.
+ * Headers CORS são adicionados explicitamente para garantir suporte ao preflight OPTIONS.
  */
 export const createUserAuth = functions.https.onRequest((request, response) => {
-  cors({ origin: true })(request, response, () => {
-    void (async () => {
+  // Adiciona headers CORS em TODAS as respostas (inclusive preflight)
+  const allowedOrigins = [
+    "http://localhost:8080",
+    "http://localhost:3000",
+    "http://127.0.0.1:8080",
+    "http://127.0.0.1:3000",
+    "https://titanium-cursos.web.app",
+    "https://titanium-cursos.firebaseapp.com",
+  ];
+
+  const origin = request.headers.origin || "";
+  const corsOrigin = allowedOrigins.includes(origin) ? origin : allowedOrigins[4];
+
+  response.set("Access-Control-Allow-Origin", corsOrigin);
+  response.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+  response.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  response.set("Access-Control-Max-Age", "3600");
+
+  // Responde imediatamente ao preflight (OPTIONS)
+  if (request.method === "OPTIONS") {
+    response.status(204).send("");
+    return;
+  }
+
+  void (async () => {
       if (request.method !== "POST") {
         response.status(405).json({ error: "Método não permitido. Use POST." });
         return;
@@ -1206,7 +1229,6 @@ export const createUserAuth = functions.https.onRequest((request, response) => {
       type: typeof error,
       keys: error ? Object.keys(error) : []
     });
-    
 
     // Verificar se a resposta já foi enviada
     if (response.headersSent) {
@@ -1246,7 +1268,6 @@ export const createUserAuth = functions.https.onRequest((request, response) => {
       });
       return;
     } else {
-      // Erro genérico
       const errorMessage = error?.message || error?.toString() || "Erro interno do servidor";
       functions.logger.error("Erro não mapeado, retornando 500", {
         errorMessage,
@@ -1260,12 +1281,11 @@ export const createUserAuth = functions.https.onRequest((request, response) => {
       return;
     }
   }
-    })().catch((err: any) => {
-      if (!response.headersSent) {
-        functions.logger.error("createUserAuth unhandled", err);
-        response.status(500).json({ error: err?.message || "Erro interno" });
-      }
-    });
+  })().catch((err: any) => {
+    if (!response.headersSent) {
+      functions.logger.error("createUserAuth unhandled", err);
+      response.status(500).json({ error: err?.message || "Erro interno" });
+    }
   });
 });
 

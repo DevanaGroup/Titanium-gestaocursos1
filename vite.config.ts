@@ -13,6 +13,14 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: true,
     port: 8080,
+    proxy: {
+      '/cloudfunctions-proxy': {
+        target: 'https://us-central1-titanium-cursos.cloudfunctions.net',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/cloudfunctions-proxy/, ''),
+        secure: true,
+      },
+    },
   },
   build: {
     rollupOptions: {

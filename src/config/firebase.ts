@@ -50,6 +50,9 @@ if (typeof window !== 'undefined') {
 }
 
 // URL base para Cloud Functions
-export const FUNCTIONS_BASE_URL = `https://us-central1-${firebaseConfig.projectId}.cloudfunctions.net`;
+// Em desenvolvimento usa proxy do Vite (evita CORS); em produção vai direto
+export const FUNCTIONS_BASE_URL = import.meta.env.DEV
+  ? '/cloudfunctions-proxy'
+  : `https://us-central1-${firebaseConfig.projectId}.cloudfunctions.net`;
 
 export default app;
