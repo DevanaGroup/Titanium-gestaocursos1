@@ -987,19 +987,9 @@ async function getEventCollaboratorsByIds(ids: string[]): Promise<any[]> {
  */
 export const createUserAuth = functions.https.onRequest((request, response) => {
   // Adiciona headers CORS em TODAS as respostas (inclusive preflight)
-  const allowedOrigins = [
-    "http://localhost:8080",
-    "http://localhost:3000",
-    "http://127.0.0.1:8080",
-    "http://127.0.0.1:3000",
-    "https://titanium-cursos.web.app",
-    "https://titanium-cursos.firebaseapp.com",
-  ];
-
-  const origin = request.headers.origin || "";
-  const corsOrigin = allowedOrigins.includes(origin) ? origin : allowedOrigins[4];
-
-  response.set("Access-Control-Allow-Origin", corsOrigin);
+  // A função já exige token Firebase válido, então aceitar qualquer origem é seguro
+  const requestOrigin = request.headers.origin || "*";
+  response.set("Access-Control-Allow-Origin", requestOrigin);
   response.set("Access-Control-Allow-Methods", "POST, OPTIONS");
   response.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
   response.set("Access-Control-Max-Age", "3600");

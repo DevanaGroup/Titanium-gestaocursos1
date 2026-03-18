@@ -541,6 +541,8 @@ export const LessonManagement = () => {
         ...newLesson,
         protocol,
         origin: "Interno" as const,
+        professorId: newLesson.professorId === "__none__" ? "" : newLesson.professorId,
+        professorName: newLesson.professorId === "__none__" ? "" : newLesson.professorName,
         deletedAt: null,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
@@ -680,6 +682,8 @@ export const LessonManagement = () => {
       const lessonRef = doc(db, "lessons", selectedLesson.id);
       const updateData = {
         ...newLesson,
+        professorId: newLesson.professorId === "__none__" ? "" : newLesson.professorId,
+        professorName: newLesson.professorId === "__none__" ? "" : newLesson.professorName,
         deletedAt: null,
         updatedAt: serverTimestamp()
       };
@@ -953,7 +957,7 @@ export const LessonManagement = () => {
                       ) : "-"}
                     </TableCell>
                     <TableCell className="text-center whitespace-nowrap">
-                      {lesson.lessonDate ? new Date(lesson.lessonDate).toLocaleDateString('pt-BR') : "-"}
+                      {lesson.lessonDate ? new Date(lesson.lessonDate + 'T00:00:00').toLocaleDateString('pt-BR') : "-"}
                       {lesson.lessonStartTime && ` ${lesson.lessonStartTime}`}
                     </TableCell>
                     <TableCell className="text-center max-w-[200px] truncate">{lesson.locationName || "-"}</TableCell>
@@ -1262,8 +1266,8 @@ export const LessonManagement = () => {
                     if (value === "__none__") {
                       setNewLesson(prev => ({
                         ...prev,
-                        professorId: "",
-                        professorName: "",
+                        professorId: "__none__",
+                        professorName: "Nenhum",
                         professorPaymentValue: undefined
                       }));
                       return;
@@ -1289,7 +1293,7 @@ export const LessonManagement = () => {
                     ))}
                   </SelectContent>
                 </Select>
-                {newLesson.professorId && (
+                {newLesson.professorId && newLesson.professorId !== "__none__" && (
                   <div className="grid gap-2">
                     <Label htmlFor="professorPaymentValue">Valor a pagar ao professor (R$)</Label>
                     <Input
@@ -1830,8 +1834,8 @@ export const LessonManagement = () => {
                     if (value === "__none__") {
                       setNewLesson(prev => ({
                         ...prev,
-                        professorId: "",
-                        professorName: "",
+                        professorId: "__none__",
+                        professorName: "Nenhum",
                         professorPaymentValue: undefined
                       }));
                       return;
@@ -1857,7 +1861,7 @@ export const LessonManagement = () => {
                     ))}
                   </SelectContent>
                 </Select>
-                {newLesson.professorId && (
+                {newLesson.professorId && newLesson.professorId !== "__none__" && (
                   <div className="grid gap-2">
                     <Label htmlFor="edit-professorPaymentValue">Valor a pagar ao professor (R$)</Label>
                     <Input
