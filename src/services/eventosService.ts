@@ -45,6 +45,10 @@ const toFirestore = (e: Partial<Evento>) => {
   if (data.createdAt) data.createdAt = Timestamp.fromDate(data.createdAt as Date);
   if (data.updatedAt) data.updatedAt = Timestamp.fromDate(data.updatedAt as Date);
   delete data.id;
+  // Firestore não aceita undefined — remove todos os campos undefined
+  Object.keys(data).forEach((key) => {
+    if (data[key] === undefined) delete data[key];
+  });
   return data;
 };
 
